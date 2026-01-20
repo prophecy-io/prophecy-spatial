@@ -1,0 +1,11 @@
+.vscode/
+.venv/
+logs/
+dbt_packages/
+target/
+models/*
+!models/README.md
+.prophecy/
+prophecy-sources/*
+!prophecy-sources/unreferencedSources.yml
+.idea/

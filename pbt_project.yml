@@ -1,0 +1,130 @@
+name: prophecy_spatial
+description: ''
+version: 1.0.0.dev0
+author: abhinav@prophecy.io
+language: sql
+buildSystem: ''
+buildSystemDetails: null
+pipelines: {}
+datasets: {}
+templates: {}
+jobs: {}
+gemContainer:
+  languageVersion: ''
+  gemLibsVersion: ''
+  gems: {}
+  dependencies: null
+functions:
+  author: null
+  createdAt: '2024-11-28 04:57:10'
+  udfs: {}
+  udafs: {}
+  expressions: {}
+  airflowFunctions: {}
+  businessRules: {}
+subgraphs: {}
+sqlModels: {}
+sqlSnapshots: {}
+sqlTests: {}
+sqlMacros:
+  .prophecy/metadata/sqlmacros/Distance:
+    name: Distance
+    macroType: query
+    description: null
+    author: abhinav@prophecy.io
+    files:
+      - macros/Distance.sql
+      - .prophecy/ide/macros/Distance.json
+      - macros/macros.yml
+      - gems/Distance.py
+    createdAt: '2025-04-10 05:01:34'
+  .prophecy/metadata/sqlmacros/CreatePoint:
+    name: CreatePoint
+    macroType: query
+    description: null
+    author: abhinav@prophecy.io
+    files:
+      - macros/CreatePoint.sql
+      - .prophecy/ide/macros/CreatePoint.json
+      - macros/macros.yml
+      - gems/CreatePoint.py
+    createdAt: '2025-04-10 05:01:34'
+  .prophecy/metadata/sqlmacros/HeatMap:
+    name: HeatMap
+    macroType: query
+    description: null
+    author: debashis.adak@prophecy.io
+    files:
+      - macros/HeatMap.sql
+      - .prophecy/ide/macros/HeatMap.json
+      - macros/macros.yml
+      - gems/HeatMap.py
+    createdAt: '2025-04-10 05:01:34'
+  .prophecy/metadata/sqlmacros/PolyBuild:
+    name: PolyBuild
+    macroType: query
+    description: null
+    author: debashis.adak@prophecy.io
+    files:
+      - macros/PolyBuild.sql
+      - .prophecy/ide/macros/PolyBuild.json
+      - macros/macros.yml
+      - gems/PolyBuild.py
+    createdAt: '2025-04-10 05:01:34'
+  .prophecy/metadata/sqlmacros/FindNearest:
+    name: FindNearest
+    macroType: query
+    description: null
+    author: adak.debashis@prophecy.io
+    files:
+      - macros/FindNearest.sql
+      - .prophecy/ide/macros/FindNearest.json
+      - macros/macros.yml
+      - gems/FindNearest.py
+    createdAt: '2025-06-03 05:01:34'
+  .prophecy/metadata/sqlmacros/Simplify:
+    name: Simplify
+    macroType: query
+    description: null
+    author: adak.debashis@prophecy.io
+    files:
+      - macros/Simplify.sql
+      - .prophecy/ide/macros/Simplify.json
+      - macros/macros.yml
+      - gems/Simplify.py
+    createdAt: '2025-06-03 05:01:34'
+  .prophecy/metadata/sqlmacros/Buffer:
+    name: Buffer
+    macroType: query
+    description: null
+    author: adak.debashis@prophecy.io
+    files:
+      - macros/Buffer.sql
+      - .prophecy/ide/macros/Buffer.json
+      - macros/macros.yml
+      - gems/Buffer.py
+    createdAt: '2025-06-03 05:01:34'
+  .prophecy/metadata/sqlmacros/SpatialMatch:
+    name: SpatialMatch
+    macroType: query
+    description: null
+    author: tree.connor@prophecy.io
+    files:
+      - macros/SpatialMatch.sql
+      - .prophecy/ide/macros/SpatialMatch.json
+      - macros/macros.yml
+      - gems/SpatialMatch.py
+    createdAt: '2025-07-16 05:01:34'
+sqlSeeds: {}
+sqlSources: {}
+sqlUnreferencedSources: {}
+sqlPipeline:
+  name: sqlPipeline
+  description: null
+  author: abhinav@prophecy.io
+  createdAt: '2024-11-28 04:57:10'
+dependencies: []
+projectDependencies: {}
+flags:
+  shouldAddDefaultDependenciesIfAbsent: true
+pipelineConfigurations: {}

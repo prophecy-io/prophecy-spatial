@@ -5,6 +5,7 @@ dbt_packages/
 target/
 models/*
 !models/README.md
+seeds/
 .prophecy/
 prophecy-sources/*
 !prophecy-sources/unreferencedSources.yml

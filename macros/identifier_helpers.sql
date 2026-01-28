@@ -6,7 +6,7 @@
 
 {% macro default__quote_identifier(identifier) %}
     {% if identifier is string %}
-        {% set clean_identifier = identifier | trim %}
+        {% set clean_identifier = prophecy_spatial.unquote_identifier(identifier) | trim %}
         {% if ' ' in clean_identifier or clean_identifier.startswith('`') == false %}
             {% set bt = "`" %}
             {{ bt ~ clean_identifier ~ bt }}
@@ -20,18 +20,53 @@
 
 {% macro duckdb__quote_identifier(identifier, quote_char='"') %}
     {%- if identifier is string -%}
-        {# Single identifier - return quoted string #}
-        {{ quote_char }}{{ identifier }}{{ quote_char }}
+        {# Single identifier - unquote first, then trim, then quote #}
+        {%- set clean_identifier = prophecy_spatial.unquote_identifier(identifier) | trim -%}
+        {{ quote_char }}{{ clean_identifier }}{{ quote_char }}
     {%- elif identifier is iterable -%}
         {# List of identifiers - return list of quoted strings #}
         {%- set quoted_identifiers = [] -%}
         {%- for id in identifier -%}
-            {%- do quoted_identifiers.append(quote_char ~ id ~ quote_char) -%}
+            {%- set clean_id = prophecy_spatial.unquote_identifier(id) | trim -%}
+            {%- do quoted_identifiers.append(quote_char ~ clean_id ~ quote_char) -%}
         {%- endfor -%}
         {{ quoted_identifiers }}
     {%- else -%}
         {# Fallback: treat as string #}
-        {{ quote_char }}{{ identifier }}{{ quote_char }}
+        {%- set clean_identifier = prophecy_spatial.unquote_identifier(identifier | string) | trim -%}
+        {{ quote_char }}{{ clean_identifier }}{{ quote_char }}
+    {%- endif -%}
+{% endmacro %}
+
+{% macro bigquery__quote_identifier(identifier) %}
+    {%- if identifier is string -%}
+        {# BigQuery uses backticks and handles dotted names (dataset.table) #}
+        {%- set clean_identifier = prophecy_spatial.unquote_identifier(identifier) | trim -%}
+        {%- if '.' in clean_identifier -%}
+            {# Split on dots and quote each part separately #}
+            {%- set parts = clean_identifier.split('.') -%}
+            {%- set quoted_parts = [] -%}
+            {%- for part in parts -%}
+                {%- set trimmed_part = part | trim -%}
+                {%- if trimmed_part != "" -%}
+                    {%- do quoted_parts.append('`' ~ trimmed_part ~ '`') -%}
+                {%- endif -%}
+            {%- endfor -%}
+            {{ quoted_parts | join('.') }}
+        {%- else -%}
+            {# Single identifier - just quote it #}
+            `{{ clean_identifier }}`
+        {%- endif -%}
+    {%- elif identifier is iterable -%}
+        {# List of identifiers - return list of quoted strings #}
+        {%- set quoted_identifiers = [] -%}
+        {%- for id in identifier -%}
+            {%- do quoted_identifiers.append(prophecy_spatial.quote_identifier(id)) -%}
+        {%- endfor -%}
+        {{ quoted_identifiers }}
+    {%- else -%}
+        {# Fallback: treat as string #}
+        `{{ identifier }}`
     {%- endif -%}
 {% endmacro %}
 
@@ -71,6 +106,37 @@
             {%- if clean_id.startswith('"') and clean_id.endswith('"') -%}
                 {%- do unquoted_identifiers.append(clean_id[1:-1]) -%}
             {%- elif clean_id.startswith('`') and clean_id.endswith('`') -%}
+                {%- do unquoted_identifiers.append(clean_id[1:-1]) -%}
+            {%- else -%}
+                {%- do unquoted_identifiers.append(clean_id) -%}
+            {%- endif -%}
+        {%- endfor -%}
+        {{ unquoted_identifiers }}
+    {%- else -%}
+        {# Fallback: treat as string #}
+        {{ identifier }}
+    {%- endif -%}
+{% endmacro %}
+
+{% macro bigquery__unquote_identifier(identifier) %}
+    {%- if identifier is string -%}
+        {# BigQuery uses backticks - unquote if quoted #}
+        {%- set clean_identifier = identifier | trim -%}
+        {%- if clean_identifier.startswith('`') and clean_identifier.endswith('`') -%}
+            {{ clean_identifier[1:-1] }}
+        {%- elif clean_identifier.startswith('"') and clean_identifier.endswith('"') -%}
+            {{ clean_identifier[1:-1] }}
+        {%- else -%}
+            {{ clean_identifier }}
+        {%- endif -%}
+    {%- elif identifier is iterable -%}
+        {# List of identifiers - return list of unquoted strings #}
+        {%- set unquoted_identifiers = [] -%}
+        {%- for id in identifier -%}
+            {%- set clean_id = id | trim -%}
+            {%- if clean_id.startswith('`') and clean_id.endswith('`') -%}
+                {%- do unquoted_identifiers.append(clean_id[1:-1]) -%}
+            {%- elif clean_id.startswith('"') and clean_id.endswith('"') -%}
                 {%- do unquoted_identifiers.append(clean_id[1:-1]) -%}
             {%- else -%}
                 {%- do unquoted_identifiers.append(clean_id) -%}

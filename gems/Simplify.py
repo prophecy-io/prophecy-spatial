@@ -54,15 +54,19 @@ class Simplify(MacroSpec):
             .addColumn(
                 StackLayout()
                 .addElement(
-                   AlertBox(
-                       variant="warning",
-                       _children=[
-                           Markdown(
-                               "**This Gem uses Databricks Spatial SQL features currently in Private Preview.**\n\n"
-                               "To enable these capabilities, please contact your Databricks representative. For more information, see the [Databricks Preview Feature Documentation](https://docs.databricks.com/en/admin/workspace-settings/manage-previews.html)."
-                            )
-                       ]
-                   )   
+                   Condition()
+                   .ifEqual(PropExpr("$.sql.metainfo.providerType"), StringExpr("databricks"))
+                   .then(
+                      AlertBox(
+                          variant="warning",
+                          _children=[
+                              Markdown(
+                                  "**This Gem uses Databricks Spatial SQL features currently in Private Preview.**\n\n"
+                                  "To enable these capabilities, please contact your Databricks representative. For more information, see the [Databricks Preview Feature Documentation](https://docs.databricks.com/en/admin/workspace-settings/manage-previews.html)."
+                               )
+                          ]
+                      )       
+                   )
                 )
                 .addElement(
                     SchemaColumnsDropdown("Geometry column (WKT format)")

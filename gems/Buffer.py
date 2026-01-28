@@ -56,6 +56,9 @@ class Buffer(MacroSpec):
             .addColumn(
                 StackLayout()
                 .addElement(
+                Condition()
+                .ifEqual(PropExpr("$.sql.metainfo.providerType"), StringExpr("databricks"))
+                .then(
                    AlertBox(
                        variant="warning",
                        _children=[
@@ -64,8 +67,8 @@ class Buffer(MacroSpec):
                                "To enable these capabilities, please contact your Databricks representative. For more information, see the [Databricks Preview Feature Documentation](https://docs.databricks.com/en/admin/workspace-settings/manage-previews.html)."
                             )
                        ]
-                   )   
-                )  
+                   )       
+                ))  
                 .addElement(
                     SchemaColumnsDropdown("Geometry column")
                         .bindSchema("component.ports.inputs[0].schema")

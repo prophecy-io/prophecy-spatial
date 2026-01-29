@@ -36,14 +36,14 @@
     {%- endfor %}
 
     {%- if matchFields | length == 0 or invalid_fields | length > 0 %}
-        select * from {{ prophecy_spatial.quote_identifier(relation) }}
+        select * from {{ prophecy_basics.quote_identifier(relation) }}
     {%- else %}
         select
             *,
             {%- for fields in matchFields %}
-                ST_AsText(ST_Point({{ prophecy_spatial.quote_identifier(fields[0]) }}, {{ prophecy_spatial.quote_identifier(fields[1]) }})) as {{ prophecy_spatial.quote_identifier(fields[2]) }}{% if not loop.last %},{% endif %}
+                ST_AsText(ST_Point({{ prophecy_basics.quote_identifier(fields[0]) }}, {{ prophecy_basics.quote_identifier(fields[1]) }})) as {{ prophecy_basics.quote_identifier(fields[2]) }}{% if not loop.last %},{% endif %}
             {%- endfor %}
-        from {{ prophecy_spatial.quote_identifier(relation) }}
+        from {{ prophecy_basics.quote_identifier(relation) }}
     {%- endif %}
 {%- endmacro -%}
 
@@ -58,13 +58,13 @@
     {%- endfor %}
 
     {%- if matchFields | length == 0 or invalid_fields | length > 0 %}
-        select * from {{ prophecy_spatial.quote_identifier(relation) }}
+        select * from {{ prophecy_basics.quote_identifier(relation) }}
     {%- else %}
         select
             *,
             {%- for fields in matchFields %}
-                CONCAT('POINT (', {{ prophecy_spatial.quote_identifier(fields[0]) }}, ' ', {{ prophecy_spatial.quote_identifier(fields[1]) }}, ')') as {{ prophecy_spatial.quote_identifier(fields[2]) }}{% if not loop.last %},{% endif %}
+                CONCAT('POINT (', {{ prophecy_basics.quote_identifier(fields[0]) }}, ' ', {{ prophecy_basics.quote_identifier(fields[1]) }}, ')') as {{ prophecy_basics.quote_identifier(fields[2]) }}{% if not loop.last %},{% endif %}
             {%- endfor %}
-        from {{ prophecy_spatial.quote_identifier(relation) }}
+        from {{ prophecy_basics.quote_identifier(relation) }}
     {%- endif %}
 {%- endmacro -%}

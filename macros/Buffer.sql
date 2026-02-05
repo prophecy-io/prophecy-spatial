@@ -6,12 +6,6 @@
 {%- macro default__Buffer(
         table_name, schema, geom_column_name, distance, unit
 ) -%}
-  {{ log("table_name=" ~ table_name, info=True) }}
-  {{ log("schema=" ~ schema, info=True) }}
-  {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
-  {{ log("distance=" ~ distance, info=True) }}
-  {{ log("unit=" ~ unit, info=True) }}
-
   {%- if unit == 'kilometers' -%}
     {%- set distance_meters = distance * 1000 -%}
   {%- else -%}
@@ -40,11 +34,6 @@
 {%- macro duckdb__Buffer(
         table_name, schema, geom_column_name, distance, unit
 ) -%}
-  {{ log("table_name=" ~ table_name, info=True) }}
-  {{ log("schema=" ~ schema, info=True) }}
-  {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
-  {{ log("distance=" ~ distance, info=True) }}
-  {{ log("unit=" ~ unit, info=True) }}
 
   {%- if unit == 'kilometers' -%}
     {%- set distance_meters = distance * 1000 -%}
@@ -74,11 +63,6 @@
 {%- endmacro -%}
 
 {%- macro bigquery__Buffer(table_name, schema, geom_column_name, distance, unit) -%}
-  {{ log("table_name=" ~ table_name, info=True) }}
-  {{ log("schema=" ~ schema, info=True) }}
-  {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
-  {{ log("distance=" ~ distance, info=True) }}
-  {{ log("unit=" ~ unit, info=True) }}
 
   {%- if unit == 'kms' or unit == 'kilometers' -%}
     {%- set distance_meters = distance * 1000 -%}

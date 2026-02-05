@@ -2,6 +2,8 @@
 .venv/
 logs/
 dbt_packages/
+packages.yml
+package-lock.yml
 target/
 models/*
 !models/README.md

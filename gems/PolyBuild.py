@@ -16,7 +16,7 @@ class PolyBuild(MacroSpec):
     supportedProviderTypes: list[ProviderTypeEnum] = [
         ProviderTypeEnum.Databricks,
         # ProviderTypeEnum.Snowflake,
-        # ProviderTypeEnum.BigQuery,
+        ProviderTypeEnum.BigQuery,
         # ProviderTypeEnum.ProphecyManaged
     ]
 

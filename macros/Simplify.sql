@@ -33,3 +33,24 @@
     {{table_name}}
 
 {%- endmacro -%}
+
+{%- macro bigquery__Simplify(table_name, schema, geom_column_name, tolerance, unit) -%}
+  {{ log("table_name=" ~ table_name, info=True) }}
+  {{ log("schema=" ~ schema, info=True) }}
+  {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
+  {{ log("tolerance=" ~ tolerance, info=True) }}
+  {{ log("unit=" ~ unit, info=True) }}
+
+  {%- if unit == 'kms' or unit == 'kilometers' -%}
+    {%- set tolerance_meters = tolerance * 1000 -%}
+  {%- else -%}
+    {%- set tolerance_meters = tolerance * 1609.34 -%}
+  {%- endif -%}
+
+  SELECT
+    {{ prophecy_basics.quote_identifier(geom_column_name) }} AS input,
+    ST_ASGEOJSON(ST_SIMPLIFY(ST_GEOGFROMTEXT({{ prophecy_basics.quote_identifier(geom_column_name) }}), {{ tolerance_meters }})) AS output
+  FROM
+    {{ prophecy_basics.quote_identifier(table_name) }}
+
+{%- endmacro -%}

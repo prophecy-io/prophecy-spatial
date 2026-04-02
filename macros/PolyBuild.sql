@@ -1,3 +1,60 @@
+{#
+  PolyBuild Macro Gem
+  ===================
+
+  Groups rows and builds one WKT polygon or linestring per group by ordering
+  coordinate pairs (optionally by a sequence column). If lon/lat names are
+  missing, returns all rows unchanged.
+
+  Parameters:
+    - relation_name (string): Source relation; adapter.quote not applied to the
+      relation itself in default__ (pass identifier as your engine expects).
+    - buildMethod (string): Compared lowercased to 'sequencepolygon' vs
+      'sequencepolyline' to choose POLYGON((...)) vs LINESTRING(...).
+    - longitudeColumnName / latitudeColumnName (string): Required for build;
+      adapter.quote applied; empty/whitespace → SELECT * passthrough.
+    - groupColumnName (string, default ''): If non-empty, groups by this column;
+      else a constant grouping key of 1.
+    - sequenceColumnName (string, default ''): If non-empty, prepended into the
+      sort key so vertices order within each group.
+
+  Adapter Support:
+    - Default (Spark collect_list / sort_array / struct; concat_ws; element_at to close rings)
+
+  Depends on schema parameter:
+    No
+
+  Macro Call Examples:
+    {{ prophecy_spatial.PolyBuild('tracks', 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
+
+  CTE Usage Example:
+    Macro call (example above):
+      {{ prophecy_spatial.PolyBuild('tracks', 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
+
+    Resolved query (default__, illustrative WITH shape):
+      WITH coords AS (
+        SELECT
+          <quoted route_id> AS grouping_column_name,
+          CONCAT(<quoted seq>, <quoted lon>, <quoted lat>) AS sequencing_column_name,
+          <quoted lon> AS lon,
+          <quoted lat> AS lat,
+          CONCAT(CAST(<quoted lon> AS STRING), ' ', CAST(<quoted lat> AS STRING)) AS coord
+        FROM tracks
+      ),
+      ordered AS (...),
+      verts AS (...)
+      SELECT
+        grouping_column_name,
+        CASE
+          WHEN 'sequencepolyline' = 'sequencepolygon' THEN
+            CONCAT('POLYGON((', concat_ws(', ', v), ', ', element_at(v, 1), '))')
+          ELSE
+            CONCAT('LINESTRING(', concat_ws(', ', v), ')')
+        END AS geometry_wkt
+      FROM verts
+
+    Quoting follows adapter.quote for lon/lat/group/sequence; compile in-project for exact SQL.
+#}
 {% macro PolyBuild(relation_name,
         buildMethod,
         longitudeColumnName,

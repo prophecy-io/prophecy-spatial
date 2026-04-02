@@ -1,3 +1,78 @@
+{#
+  FindNearest Macro Gem
+  =====================
+
+  Cross-joins two point tables, ranks targets by haversine distance per source
+  row, filters by max distance, and returns the top N neighbors with optional
+  column disambiguation. If types are not point-to-point or column names are
+  missing, returns the first relation unchanged.
+
+  Parameters:
+    - relation_names (list of two strings): [source_table, target_table]; both
+      backtick-quoted in default__.
+    - sourceColumnName / destinationColumnName (string): WKT POINT columns on
+      source and target; must be non-empty for spatial logic.
+    - sourceType / destinationType (string): Must both be 'point'.
+    - nearestPoints (int, required): ROW_NUMBER cutoff (rn <= nearestPoints).
+    - maxDistance (numeric, required): Keep pairs with distance <= maxDistance;
+      use 0 to disable the upper bound (WHERE 1=1 on distance).
+    - units (string, default 'kms'): Same distance column naming as Distance
+      ('kms', 'mls', 'mtr', 'feet', else generic).
+    - ignoreZeroDistance (bool, default false): When true, excludes distance = 0.
+    - allSourceColumnNames (list): Source columns to project (conflicts with
+      target get source_ / target_ aliases).
+    - allTargetColumnNames (list): Target columns to project (same aliasing rules).
+
+  Adapter Support:
+    - Default (backticks; UUID row id on source; haversine; ROW_NUMBER ordered by distance)
+
+  Depends on schema parameter:
+    No
+
+  Macro Call Examples:
+    {{ prophecy_spatial.FindNearest(
+         ['src_pts', 'tgt_pts'],
+         'geom_src',
+         'geom_tgt',
+         'point',
+         'point',
+         3,
+         50,
+         'kms',
+         false,
+         ['id', 'geom_src'],
+         ['id', 'geom_tgt']
+       ) }}
+
+  CTE Usage Example:
+    Macro call (example above):
+      {{ prophecy_spatial.FindNearest(
+           ['src_pts', 'tgt_pts'],
+           'geom_src',
+           'geom_tgt',
+           'point',
+           'point',
+           3,
+           50,
+           'kms',
+           false,
+           ['id', 'geom_src'],
+           ['id', 'geom_tgt']
+         ) }}
+
+    Resolved query (default__, illustrative — multiple CTEs; ORDER BY tail):
+      ...
+      SELECT
+        ranked.`id` AS source_id, ranked.target_id,
+        rn AS rank_number,
+        distanceKilometers,
+        CASE ... END AS cardinal_direction
+      FROM ranked
+      WHERE rn <= 3
+      ORDER BY lat1, lon1, rn
+
+    Compile in-project for the full WITH _src, _dst, cross_pts, coords, … chain.
+#}
 {% macro FindNearest(relation_names,
     sourceColumnName,
     destinationColumnName,

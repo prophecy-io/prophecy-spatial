@@ -1,3 +1,79 @@
+{#
+  Distance Macro Gem
+  ==================
+
+  For point-to-point rows, parses WKT POINT columns, computes great-circle
+  distance (and optionally cardinal direction and bearing in degrees). When
+  types are not both point or no distance/direction outputs are requested,
+  returns the relation unchanged.
+
+  Parameters:
+    - relation_name (string): Table name; default__ uses backticks.
+    - sourceColumnNames (string): Single column name whose values are POINT WKT.
+    - destinationColumnNames (string): Same for the destination point column.
+    - sourceType / destinationType (string): Both must be 'point' for spatial
+      math; otherwise passthrough SELECT *.
+    - outputDistance (bool): Emit a distance column (name varies by units).
+    - units (string): 'kms' | 'mls' | 'mtr' | 'feet' | other (defaults radius
+      naming to generic distance column and km-based earth radius).
+    - outputCardDirection (bool): Emit cardinal_direction (N/NE/…).
+    - outputDirectionDegrees (bool): Emit direction_degrees (0–360 bearing).
+    - allColumnNames (list, default []): Columns to project in the point/point
+      branch (backtick-quoted in SELECT); include every column you need on output
+      alongside distance/direction fields.
+
+  Adapter Support:
+    - Default (backtick-quoted relation/columns; substring parsing of POINT WKT;
+      haversine distance; optional bearing via ATAN2/LN)
+
+  Depends on schema parameter:
+    No
+
+  Macro Call Examples:
+    {{ prophecy_spatial.Distance(
+         'pairs',
+         'origin_pt',
+         'dest_pt',
+         'point',
+         'point',
+         true,
+         'kms',
+         false,
+         false,
+         ['id', 'origin_pt', 'dest_pt']
+       ) }}
+
+  CTE Usage Example:
+    Macro call (example above):
+      {{ prophecy_spatial.Distance(
+           'pairs',
+           'origin_pt',
+           'dest_pt',
+           'point',
+           'point',
+           true,
+           'kms',
+           false,
+           false,
+           ['id', 'origin_pt', 'dest_pt']
+         ) }}
+
+    Resolved query (default__, illustrative fragment — full SQL includes _coords CTE):
+      WITH _coords AS (
+        SELECT
+          `id`,`origin_pt`,`dest_pt`,
+          CAST(substring_index(substring_index(`origin_pt`, '(', -1), ' ', 1) AS DOUBLE) AS lon1,
+          ...
+        FROM `pairs`
+      )
+      SELECT
+        `id`,`origin_pt`,`dest_pt`,
+        6371 * 2 * ASIN(...) AS distanceKilometers
+      FROM _coords
+
+    For bearing + distance, compile in-project to see _with_bearing and CASE for
+    cardinal letters.
+#}
 {% macro Distance(relation_name,
     sourceColumnNames,
     destinationColumnNames,

@@ -1,3 +1,62 @@
+{#
+  SpatialMatch Macro Gem
+  ======================
+
+  Spatially joins two relations on WKT geometry columns: cross join filtered by
+  ST_* predicates (intersects, contains, within, touches, combined touches OR
+  intersects, or envelope intersection). Output columns are driven by two column
+  lists—source columns keep plain names, target columns are prefixed target_.
+
+  Parameters:
+    - relation_names (list of two strings): [source_relation, target_relation];
+      used in FROM ... AS source / AS target (no extra quoting in default__).
+    - schemas (list of two lists of strings): schemas[0] = source column names to
+      select; schemas[1] = target column names (aliased as target_<name>). Order
+      and membership of output columns follow these lists.
+    - source_col / target_col (string): Geometry column names on each side for
+      ST_GeomFromText(source.<col>) / ST_GeomFromText(target.<col>).
+    - type (string): 'intersects' | 'contains' | 'within' | 'touches' |
+      'touches_or_intersects' | 'envelope'; unknown types fall through to WHERE 1=1.
+
+  Adapter Support:
+    - Default (unqualified relation names; ST_GeomFromText without SRID; no adapter-specific overrides in-repo)
+
+  Depends on schema parameter:
+    Yes
+
+  Macro Call Examples:
+    {{ prophecy_spatial.SpatialMatch(
+         ['places', 'regions'],
+         [['id', 'geom_wkt'], ['id', 'geom_wkt']],
+         'geom_wkt',
+         'geom_wkt',
+         'intersects'
+       ) }}
+
+  CTE Usage Example:
+    Macro call (example above):
+      {{ prophecy_spatial.SpatialMatch(
+           ['places', 'regions'],
+           [['id', 'geom_wkt'], ['id', 'geom_wkt']],
+           'geom_wkt',
+           'geom_wkt',
+           'intersects'
+         ) }}
+
+    Resolved query (default__):
+      SELECT
+        source.id,
+        source.geom_wkt,
+        target.id AS target_id,
+        target.geom_wkt AS target_geom_wkt
+      FROM places AS source
+      CROSS JOIN regions AS target
+      WHERE
+        ST_Intersects(
+          ST_GeomFromText(source.geom_wkt),
+          ST_GeomFromText(target.geom_wkt)
+        )
+#}
 {% macro SpatialMatch(relation_names,
     schemas,
     source_col,

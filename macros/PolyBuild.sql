@@ -7,8 +7,9 @@
   missing, returns all rows unchanged.
 
   Parameters:
-    - relation_name (string): Source relation; adapter.quote not applied to the
-      relation itself in default__ (pass identifier as your engine expects).
+    - relation_name (list): One-element list naming the source relation (e.g.
+      ['tracks']); default__ uses that name in FROM; adapter.quote is not applied
+      to the relation itself (pass identifier as your engine expects).
     - buildMethod (string): Compared lowercased to 'sequencepolygon' vs
       'sequencepolyline' to choose POLYGON((...)) vs LINESTRING(...).
     - longitudeColumnName / latitudeColumnName (string): Required for build;
@@ -25,11 +26,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.PolyBuild('tracks', 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
+    {{ prophecy_spatial.PolyBuild(['tracks'], 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.PolyBuild('tracks', 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
+      {{ prophecy_spatial.PolyBuild(['tracks'], 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
 
     Resolved query (default__, illustrative WITH shape):
       WITH coords AS (

@@ -8,8 +8,9 @@
   returns SELECT * from the relation.
 
   Parameters:
-    - relation_name (string): Source table; not backtick-wrapped in default__
-      (pass a qualified identifier your engine accepts).
+    - relation_name (list): One-element list naming the source table (e.g.
+      ['events']); default__ uses that name in FROM without backticks (pass a
+      qualified identifier your engine accepts).
     - longitudeColumnName / latitudeColumnName (string): Numeric lon/lat columns
       passed to h3_longlatash3; if either trims to empty, passthrough SELECT *.
     - resolution (int): H3 resolution index for h3_longlatash3.
@@ -26,11 +27,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.HeatMap('events', 'lon', 'lat', 8, 2, 'weight', 'linear') }}
+    {{ prophecy_spatial.HeatMap(['events'], 'lon', 'lat', 8, 2, 'weight', 'linear') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.HeatMap('events', 'lon', 'lat', 8, 2, 'weight', 'linear') }}
+      {{ prophecy_spatial.HeatMap(['events'], 'lon', 'lat', 8, 2, 'weight', 'linear') }}
 
     Resolved query (default__, structure):
       WITH points_h3 AS (

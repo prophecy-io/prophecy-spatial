@@ -7,8 +7,9 @@
   search radii, or thickened boundaries around lines and polygons.
 
   Parameters:
-    - table_name (string): Relation used in FROM; passed through to SQL (add
-      quoting/qualifiers as required by your warehouse).
+    - table_name (list): One-element list naming the relation used in FROM (same
+      role as relation_name elsewhere), e.g. ['roads']; default__ uses that name
+      passed through to SQL (add quoting/qualifiers as required by your warehouse).
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geom_column_name (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
     - distance (numeric): Buffer distance in kilometers when unit is
@@ -24,11 +25,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.Buffer('roads', 'staging', 'geom_wkt', 0.5, 'kilometers') }}
+    {{ prophecy_spatial.Buffer(['roads'], 'staging', 'geom_wkt', 0.5, 'kilometers') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.Buffer('roads', 'staging', 'geom_wkt', 0.5, 'kilometers') }}
+      {{ prophecy_spatial.Buffer(['roads'], 'staging', 'geom_wkt', 0.5, 'kilometers') }}
 
     Resolved query (default__):
       SELECT

@@ -7,7 +7,9 @@
   incomplete triples), returns all columns from the relation unchanged.
 
   Parameters:
-    - relation (string): Source table name; default__ wraps it in backticks.
+    - relation (list): One-element list naming the source table (same role as
+      relation_name elsewhere), e.g. ['locations']; default__ wraps that name in
+      backticks.
     - matchFields (list of triples): Each entry is [lon_col, lat_col, out_col].
       If any of the three names is empty-length, or matchFields is empty, the
       macro emits SELECT * FROM the relation only.
@@ -19,11 +21,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.CreatePoint('locations', [['longitude', 'latitude', 'geom_point']]) }}
+    {{ prophecy_spatial.CreatePoint(['locations'], [['longitude', 'latitude', 'geom_point']]) }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.CreatePoint('locations', [['longitude', 'latitude', 'geom_point']]) }}
+      {{ prophecy_spatial.CreatePoint(['locations'], [['longitude', 'latitude', 'geom_point']]) }}
 
     Resolved query (default__):
       SELECT

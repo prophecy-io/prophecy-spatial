@@ -8,7 +8,8 @@
   returns the relation unchanged.
 
   Parameters:
-    - relation_name (string): Table name; default__ uses backticks.
+    - relation_name (list): One-element list of table/relation identifiers (e.g.
+      ['pairs']); default__ uses that name with backticks in FROM.
     - sourceColumnNames (string): Single column name whose values are POINT WKT.
     - destinationColumnNames (string): Same for the destination point column.
     - sourceType / destinationType (string): Both must be 'point' for spatial
@@ -31,7 +32,7 @@
 
   Macro Call Examples:
     {{ prophecy_spatial.Distance(
-         'pairs',
+         ['pairs'],
          'origin_pt',
          'dest_pt',
          'point',
@@ -46,7 +47,7 @@
   CTE Usage Example:
     Macro call (example above):
       {{ prophecy_spatial.Distance(
-           'pairs',
+           ['pairs'],
            'origin_pt',
            'dest_pt',
            'point',

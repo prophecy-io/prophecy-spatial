@@ -7,7 +7,9 @@
   count for lighter maps or downstream spatial joins.
 
   Parameters:
-    - table_name (string): Relation used in FROM; passed through to SQL.
+    - table_name (list): One-element list naming the relation used in FROM (same
+      role as relation_name elsewhere), e.g. ['boundaries']; default__ uses that
+      name passed through to SQL.
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geom_column_name (string): WKT column; ST_GeomFromText(..., 4326).
     - tolerance (numeric): Simplification tolerance in kilometers if unit is
@@ -21,11 +23,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.Simplify('boundaries', 'staging', 'geom_wkt', 0.1, 'kilometers') }}
+    {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kilometers') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.Simplify('boundaries', 'staging', 'geom_wkt', 0.1, 'kilometers') }}
+      {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kilometers') }}
 
     Resolved query (default__):
       SELECT

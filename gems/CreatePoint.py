@@ -1,3 +1,4 @@
+import ast
 import dataclasses
 from collections import defaultdict
 from prophecy.cb.sql.Component import *
@@ -216,7 +217,7 @@ class CreatePoint(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
         # Parse addFields from stored string representation
-        addFields_str = parametersMap.get('addFields', '[]')
+        addFields_str = parametersMap.get('matchFields', '[]')
         addFields = []
         try:
             import ast
@@ -231,7 +232,7 @@ class CreatePoint(MacroSpec):
         except:
             pass
         return CreatePoint.CreatePointProperties(
-            relation_name=parametersMap.get('relation_name'),
+            relation_name=parametersMap.get('relation'),
             addFields=addFields
         )
 

@@ -134,7 +134,7 @@ class Buffer(MacroSpec):
             parameters=[
                 MacroParameter("relation_name", str(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
-                MacroParameter("destinationColumnNames", properties.geometryColumnName),
+                MacroParameter("geometryColumnName", properties.geometryColumnName),
                 MacroParameter("distance", str(properties.distance)),
                 MacroParameter("unit", properties.unit)
             ]

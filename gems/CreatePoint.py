@@ -214,19 +214,42 @@ class CreatePoint(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+        # Parse addFields from stored string representation
+        addFields_str = parametersMap.get('addFields', '[]')
+        addFields = []
+        try:
+            import ast
+            parsed = ast.literal_eval(addFields_str)
+            for item in parsed:
+                if len(item) >= 3:
+                    addFields.append(self.AddMatchField(
+                        longitudeColumnName=item[0],
+                        latitudeColumnName=item[1],
+                        targetColumnName=item[2]
+                    ))
+        except:
+            pass
         return CreatePoint.CreatePointProperties(
-            relation_name=parametersMap.get('relation_name')
+            relation_name=parametersMap.get('relation_name'),
+            addFields=addFields
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
+        # Serialize addFields to storable format
+        addFields_list = []
+        for field in properties.addFields:
+            addFields_list.append([
+                field.longitudeColumnName,
+                field.latitudeColumnName,
+                field.targetColumnName
+            ])
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name))
+                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("addFields", str(addFields_list))
             ],
         )
 

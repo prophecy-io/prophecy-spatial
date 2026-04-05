@@ -208,7 +208,7 @@ class CreatePoint(MacroSpec):
             grouped_fields.append([field.longitudeColumnName,field.latitudeColumnName,field.targetColumnName])
 
         arguments = [
-            "'" + table_name + "'",
+            str(props.relation_name),
             str(grouped_fields)
         ]
         params = ",".join([param for param in arguments])
@@ -232,7 +232,7 @@ class CreatePoint(MacroSpec):
         except:
             pass
         return CreatePoint.CreatePointProperties(
-            relation_name=parametersMap.get('relation'),
+            relation_name=json.loads(parametersMap.get('relation_name', '[]').replace("'", '"')),
             addFields=addFields
         )
 

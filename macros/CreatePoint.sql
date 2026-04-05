@@ -41,6 +41,7 @@
 {%- macro default__CreatePoint(
         relation, matchFields
 ) -%}
+    {%- set relation_list = relation if relation is iterable and relation is not string else [relation] -%}
     {%- set invalid_fields = [] -%}
     {%- for fields in matchFields %}
         {%- if fields[0] | length == 0 or fields[1] | length == 0 or fields[2] | length == 0 %}
@@ -49,13 +50,13 @@
     {%- endfor %}
 
     {%- if matchFields | length == 0 or invalid_fields | length > 0 %}
-        select * from `{{ relation }}`
+        select * from `{{ relation_list | join(', ') }}`
     {%- else %}
         select
             *,
             {%- for fields in matchFields %}
                 CONCAT('POINT (', `{{ fields[0] }}`, ' ', `{{ fields[1] }}`, ')') as `{{ fields[2] }}`{% if not loop.last %},{% endif %}
             {%- endfor %}
-        from `{{ relation }}`
+        from `{{ relation_list | join(', ') }}`
     {%- endif %}
 {%- endmacro -%}

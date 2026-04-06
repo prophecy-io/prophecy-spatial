@@ -119,9 +119,9 @@ class Buffer(MacroSpec):
         return Buffer.BufferProperties(
             relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
             schema=parametersMap.get('schema'),
-            geometryColumnName=parametersMap.get('geometryColumnName'),
+            geometryColumnName=parametersMap.get('geometryColumnName').lstrip("'").rstrip("'"),
             distance=int(parametersMap.get('distance')),
-            unit=str(parametersMap.get('unit'))
+            unit=str(parametersMap.get('unit')).lstrip("'").rstrip("'")
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

@@ -115,26 +115,31 @@ class Buffer(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        pm = self.convertToParameterMap(properties.parameters)
+        # load the component's state given default macro property representation
+        parametersMap = self.convertToParameterMap(properties.parameters)
         return Buffer.BufferProperties(
-            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
-            schema=pm.get("schema"),
-            geometryColumnName=pm.get("geometryColumnName").lstrip("'").rstrip("'"),
-            distance=int(pm.get("distance")),
-            unit=pm.get("unit").lstrip("'").rstrip("'"),
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            schema=parametersMap.get('schema').lstrip("'").rstrip("'"),
+            geometryColumnName=parametersMap.get('geometryColumnName').lstrip("'").rstrip("'"),
+            distance=int(parametersMap.get("distance")),
+            unit=parametersMap.get('unit').lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
+        # convert component's state to default macro property representation
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
-                MacroParameter("geometryColumnName", properties.geometryColumnName),
+                MacroParameter("geometryColumnName", str(properties.geometryColumnName)),
                 MacroParameter("distance", str(properties.distance)),
-                MacroParameter("unit", properties.unit),
+                MacroParameter("unit", str(properties.unit)),
             ],
         )
 

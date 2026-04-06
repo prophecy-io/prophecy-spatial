@@ -154,8 +154,8 @@ class CreatePoint(MacroSpec):
                     Diagnostic("component.properties.addFields", "Please provide a target column name", SeverityLevelEnum.Error))
 
         # Check 3: If schema is updated but not selected fields
-        # Extract all column names from the schema
-        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+        # Extract all column names from the schema (same parsed structure as above)
+        field_names = [field["name"] for field in schema["fields"]]
 
         # Extract longitude column names from addFields
         match_longitude_field = [field.longitudeColumnName for field in component.properties.addFields if field.longitudeColumnName]
@@ -213,37 +213,45 @@ class CreatePoint(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        pm = self.convertToParameterMap(properties.parameters)
-        return CreatePoint.CreatePointProperties(
-            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
-            addFields=[
+        # load the component's state given default macro property representation
+        parametersMap = self.convertToParameterMap(properties.parameters)
+        add_fields_raw = json.loads(parametersMap.get("addFields").replace("'", '"'))
+        add_fields = []
+        for r in add_fields_raw:
+            add_fields.append(
                 CreatePoint.AddMatchField(
-                    longitudeColumnName=i["longitudeColumnName"],
-                    latitudeColumnName=i["latitudeColumnName"],
-                    targetColumnName=i["targetColumnName"],
+                    longitudeColumnName=r.get("longitudeColumnName") or "",
+                    latitudeColumnName=r.get("latitudeColumnName") or "",
+                    targetColumnName=r.get("targetColumnName") or "",
                 )
-                for i in json.loads(pm.get("addFields").replace("'", '"'))
-            ],
+            )
+        return CreatePoint.CreatePointProperties(
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            addFields=add_fields,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
+        # convert component's state to default macro property representation
+        add_fields_json = json.dumps(
+            [
+                {
+                    "longitudeColumnName": f.longitudeColumnName,
+                    "latitudeColumnName": f.latitudeColumnName,
+                    "targetColumnName": f.targetColumnName,
+                }
+                for f in properties.addFields
+            ]
+        )
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter(
-                    "addFields",
-                    json.dumps([
-                        {
-                            "longitudeColumnName": f.longitudeColumnName,
-                            "latitudeColumnName": f.latitudeColumnName,
-                            "targetColumnName": f.targetColumnName,
-                        }
-                        for f in properties.addFields
-                    ]),
-                ),
+                MacroParameter("addFields", add_fields_json),
             ],
         )
 

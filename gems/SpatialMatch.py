@@ -173,8 +173,10 @@ class SpatialMatch(MacroSpec):
                            SeverityLevelEnum.Error)
             )
 
-        source_field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
-        target_field_names = [field["name"] for field in component.ports.inputs[1].schema["fields"]]
+        source_schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        target_schema = json.loads(str(component.ports.inputs[1].schema).replace("'", '"'))
+        source_field_names = [field["name"] for field in source_schema["fields"]]
+        target_field_names = [field["name"] for field in target_schema["fields"]]
 
         if len(component.properties.source_column) > 0:
             if component.properties.source_column not in source_field_names:
@@ -217,27 +219,32 @@ class SpatialMatch(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        pm = self.convertToParameterMap(properties.parameters)
-        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
+        # load the component's state given default macro property representation
+        parametersMap = self.convertToParameterMap(properties.parameters)
         return SpatialMatch.SpatialMatchProperties(
-            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
-            schemas=json.loads(pm.get("schemas").replace("'", '"')),
-            match_type=q("match_type"),
-            source_column=q("source_column"),
-            target_column=q("target_column"),
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            schemas=json.loads(parametersMap.get("schemas").replace("'", '"')),
+            match_type=parametersMap.get('match_type').lstrip("'").rstrip("'"),
+            source_column=parametersMap.get('source_column').lstrip("'").rstrip("'"),
+            target_column=parametersMap.get('target_column').lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
+        # convert component's state to default macro property representation
+        schemas_json = json.dumps(properties.schemas)
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("schemas", json.dumps(properties.schemas)),
-                MacroParameter("match_type", properties.match_type),
-                MacroParameter("source_column", properties.source_column),
-                MacroParameter("target_column", properties.target_column),
+                MacroParameter("schemas", schemas_json),
+                MacroParameter("match_type", str(properties.match_type)),
+                MacroParameter("source_column", str(properties.source_column)),
+                MacroParameter("target_column", str(properties.target_column)),
             ],
         )
 

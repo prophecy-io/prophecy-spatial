@@ -160,8 +160,8 @@ class HeatMap(MacroSpec):
                 Diagnostic("component.properties.latitudeColumnName", "Please select the latitude column",
                            SeverityLevelEnum.Error))
 
-        # Extract all column names from the schema
-        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        field_names = [field["name"] for field in schema["fields"]]
         if component.properties.longitudeColumnName != '' and component.properties.longitudeColumnName not in field_names:
             diagnostics.append(
                 Diagnostic("component.properties.longitudeColumnName",
@@ -185,7 +185,7 @@ class HeatMap(MacroSpec):
 
         # ── Numeric‐type check for heatColumnName ────────────────────────────
         if component.properties.heatColumnName != '':
-            fields_dict = { field["name"]: field["dataType"]["type"] for field in component.ports.inputs[0].schema["fields"] }
+            fields_dict = {field["name"]: field["dataType"]["type"] for field in schema["fields"]}
             dtype = fields_dict.get(component.properties.heatColumnName).lower()
             numeric_types = {
                 "tinyint", "smallint", "int", "integer",
@@ -232,31 +232,35 @@ class HeatMap(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        pm = self.convertToParameterMap(properties.parameters)
-        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
+        # load the component's state given default macro property representation
+        parametersMap = self.convertToParameterMap(properties.parameters)
         return HeatMap.HeatMapProperties(
-            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
-            longitudeColumnName=q("longitudeColumnName"),
-            latitudeColumnName=q("latitudeColumnName"),
-            heatColumnName=q("heatColumnName"),
-            decayType=q("decayType"),
-            resolution=int(pm.get("resolution")),
-            gridDistance=int(pm.get("gridDistance")),
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            longitudeColumnName=parametersMap.get('longitudeColumnName').lstrip("'").rstrip("'"),
+            latitudeColumnName=parametersMap.get('latitudeColumnName').lstrip("'").rstrip("'"),
+            heatColumnName=parametersMap.get('heatColumnName').lstrip("'").rstrip("'"),
+            decayType=parametersMap.get('decayType').lstrip("'").rstrip("'"),
+            resolution=int(parametersMap.get("resolution")),
+            gridDistance=int(parametersMap.get("gridDistance")),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
+        # convert component's state to default macro property representation
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("longitudeColumnName", properties.longitudeColumnName),
-                MacroParameter("latitudeColumnName", properties.latitudeColumnName),
+                MacroParameter("longitudeColumnName", str(properties.longitudeColumnName)),
+                MacroParameter("latitudeColumnName", str(properties.latitudeColumnName)),
                 MacroParameter("resolution", str(properties.resolution)),
                 MacroParameter("gridDistance", str(properties.gridDistance)),
-                MacroParameter("heatColumnName", properties.heatColumnName),
-                MacroParameter("decayType", properties.decayType),
+                MacroParameter("heatColumnName", str(properties.heatColumnName)),
+                MacroParameter("decayType", str(properties.decayType)),
             ],
         )
 

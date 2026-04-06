@@ -57,11 +57,8 @@
 {%- macro default__Buffer(
         table_name, schema, geom_column_name, distance, unit
 ) -%}
-  {{ log("table_name=" ~ table_name, info=True) }}
-  {{ log("schema=" ~ schema, info=True) }}
-  {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
-  {{ log("distance=" ~ distance, info=True) }}
-  {{ log("unit=" ~ unit, info=True) }}
+  {% set relation_list = table_name if table_name is iterable and table_name is not string else [table_name] %}
+
 
   {%- if unit == 'kilometers' -%}
     {%- set distance_meters = distance * 1000 -%}
@@ -84,6 +81,6 @@
       )
     ) as output
   FROM
-    {{ table_name | join(', ') }}
+    {{ relation_list | join(', ') }}
 
 {%- endmacro -%}

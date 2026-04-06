@@ -189,14 +189,15 @@ class PolyBuild(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
+        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
         return PolyBuild.PolyBuildProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            buildMethod=parametersMap.get("buildMethod").lstrip("'").rstrip("'"),
-            longitudeColumnName=parametersMap.get("longitudeColumnName").lstrip("'").rstrip("'"),
-            latitudeColumnName=parametersMap.get("latitudeColumnName").lstrip("'").rstrip("'"),
-            groupColumnName=parametersMap.get("groupColumnName").lstrip("'").rstrip("'"),
-            sequenceColumnName=parametersMap.get("sequenceColumnName").lstrip("'").rstrip("'"),
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            buildMethod=q("buildMethod"),
+            longitudeColumnName=q("longitudeColumnName"),
+            latitudeColumnName=q("latitudeColumnName"),
+            groupColumnName=q("groupColumnName"),
+            sequenceColumnName=q("sequenceColumnName"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

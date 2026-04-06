@@ -115,15 +115,14 @@ class Buffer(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
-
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
         return Buffer.BufferProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            schema=parametersMap.get("schema"),
-            geometryColumnName=parametersMap.get("geometryColumnName").lstrip("'").rstrip("'"),
-            distance=int(parametersMap.get("distance")),
-            unit=parametersMap.get("unit").lstrip("'").rstrip("'"),
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            schema=pm.get("schema"),
+            geometryColumnName=pm.get("geometryColumnName").lstrip("'").rstrip("'"),
+            distance=int(pm.get("distance")),
+            unit=pm.get("unit").lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

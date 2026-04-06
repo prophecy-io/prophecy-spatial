@@ -214,16 +214,16 @@ class CreatePoint(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
         return CreatePoint.CreatePointProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
             addFields=[
                 CreatePoint.AddMatchField(
-                    longitudeColumnName=i.get("longitudeColumnName", "") or "",
-                    latitudeColumnName=i.get("latitudeColumnName", "") or "",
-                    targetColumnName=i.get("targetColumnName", "") or "",
+                    longitudeColumnName=i["longitudeColumnName"],
+                    latitudeColumnName=i["latitudeColumnName"],
+                    targetColumnName=i["targetColumnName"],
                 )
-                for i in json.loads(parametersMap.get("addFields").replace("'", '"'))
+                for i in json.loads(pm.get("addFields").replace("'", '"'))
             ],
         )
 
@@ -233,14 +233,17 @@ class CreatePoint(MacroSpec):
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("addFields", json.dumps([
-                    {
-                        "longitudeColumnName": f.longitudeColumnName or "",
-                        "latitudeColumnName": f.latitudeColumnName or "",
-                        "targetColumnName": f.targetColumnName or "",
-                    }
-                    for f in (properties.addFields or [])
-                ])),
+                MacroParameter(
+                    "addFields",
+                    json.dumps([
+                        {
+                            "longitudeColumnName": f.longitudeColumnName,
+                            "latitudeColumnName": f.latitudeColumnName,
+                            "targetColumnName": f.targetColumnName,
+                        }
+                        for f in properties.addFields
+                    ]),
+                ),
             ],
         )
 

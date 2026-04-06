@@ -133,15 +133,14 @@ class Simplify(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
-
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
         return Simplify.SimplifyProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            schema=parametersMap.get("schema"),
-            geom_column_name=parametersMap.get("geom_column_name").lstrip("'").rstrip("'"),
-            tolerance=str(parametersMap.get("tolerance")),
-            unit=parametersMap.get("unit").lstrip("'").rstrip("'"),
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            schema=pm.get("schema"),
+            geom_column_name=pm.get("geom_column_name").lstrip("'").rstrip("'"),
+            tolerance=str(pm.get("tolerance")),
+            unit=pm.get("unit").lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

@@ -233,15 +233,16 @@ class HeatMap(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
+        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
         return HeatMap.HeatMapProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            longitudeColumnName=parametersMap.get("longitudeColumnName").lstrip("'").rstrip("'"),
-            latitudeColumnName=parametersMap.get("latitudeColumnName").lstrip("'").rstrip("'"),
-            heatColumnName=parametersMap.get("heatColumnName").lstrip("'").rstrip("'"),
-            decayType=parametersMap.get("decayType").lstrip("'").rstrip("'"),
-            resolution=int(parametersMap.get("resolution")),
-            gridDistance=int(parametersMap.get("gridDistance")),
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            longitudeColumnName=q("longitudeColumnName"),
+            latitudeColumnName=q("latitudeColumnName"),
+            heatColumnName=q("heatColumnName"),
+            decayType=q("decayType"),
+            resolution=int(pm.get("resolution")),
+            gridDistance=int(pm.get("gridDistance")),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -254,8 +255,8 @@ class HeatMap(MacroSpec):
                 MacroParameter("latitudeColumnName", properties.latitudeColumnName),
                 MacroParameter("resolution", str(properties.resolution)),
                 MacroParameter("gridDistance", str(properties.gridDistance)),
-                MacroParameter("heatColumnName", str(properties.heatColumnName)),
-                MacroParameter("decayType", str(properties.decayType)),
+                MacroParameter("heatColumnName", properties.heatColumnName),
+                MacroParameter("decayType", properties.decayType),
             ],
         )
 

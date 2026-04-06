@@ -224,18 +224,19 @@ class Distance(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
+        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
         return Distance.DistanceProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            schema=parametersMap.get("schema"),
-            sourceColumnNames=parametersMap.get("sourceColumnNames").lstrip("'").rstrip("'"),
-            destinationColumnNames=parametersMap.get("destinationColumnNames").lstrip("'").rstrip("'"),
-            sourceType=parametersMap.get("sourceType").lstrip("'").rstrip("'"),
-            destinationType=parametersMap.get("destinationType").lstrip("'").rstrip("'"),
-            outputDistance=parametersMap.get("outputDistance").lower() == "true",
-            units=parametersMap.get("units").lstrip("'").rstrip("'"),
-            outputCardDirection=parametersMap.get("outputCardDirection").lower() == "true",
-            outputDirectionDegrees=parametersMap.get("outputDirectionDegrees").lower() == "true",
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            schema=pm.get("schema"),
+            sourceColumnNames=q("sourceColumnNames"),
+            destinationColumnNames=q("destinationColumnNames"),
+            sourceType=q("sourceType"),
+            destinationType=q("destinationType"),
+            outputDistance=pm.get("outputDistance").lower() == "true",
+            units=q("units"),
+            outputCardDirection=pm.get("outputCardDirection").lower() == "true",
+            outputDirectionDegrees=pm.get("outputDirectionDegrees").lower() == "true",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

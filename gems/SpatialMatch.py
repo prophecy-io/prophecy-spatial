@@ -218,13 +218,14 @@ class SpatialMatch(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
+        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
         return SpatialMatch.SpatialMatchProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            schemas=json.loads(parametersMap.get("schemas").replace("'", '"')),
-            match_type=parametersMap.get("match_type").lstrip("'").rstrip("'"),
-            source_column=parametersMap.get("source_column").lstrip("'").rstrip("'"),
-            target_column=parametersMap.get("target_column").lstrip("'").rstrip("'"),
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            schemas=json.loads(pm.get("schemas").replace("'", '"')),
+            match_type=q("match_type"),
+            source_column=q("source_column"),
+            target_column=q("target_column"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -234,9 +235,9 @@ class SpatialMatch(MacroSpec):
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schemas", json.dumps(properties.schemas)),
-                MacroParameter("match_type", str(properties.match_type)),
-                MacroParameter("source_column", str(properties.source_column)),
-                MacroParameter("target_column", str(properties.target_column)),
+                MacroParameter("match_type", properties.match_type),
+                MacroParameter("source_column", properties.source_column),
+                MacroParameter("target_column", properties.target_column),
             ],
         )
 

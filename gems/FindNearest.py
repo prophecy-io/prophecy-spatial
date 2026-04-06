@@ -235,19 +235,20 @@ class FindNearest(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        parametersMap = self.convertToParameterMap(properties.parameters)
+        pm = self.convertToParameterMap(properties.parameters)
+        q = lambda k: pm.get(k).lstrip("'").rstrip("'")
         return FindNearest.FindNearestProperties(
-            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
-            source_schema=parametersMap.get("source_schema"),
-            target_schema=parametersMap.get("target_schema"),
-            sourceColumnName=parametersMap.get("sourceColumnName").lstrip("'").rstrip("'"),
-            destinationColumnName=parametersMap.get("destinationColumnName").lstrip("'").rstrip("'"),
-            sourceType=parametersMap.get("sourceType").lstrip("'").rstrip("'"),
-            targetType=parametersMap.get("targetType").lstrip("'").rstrip("'"),
-            nearestPoints=int(parametersMap.get("nearestPoints")),
-            maxDistance=int(parametersMap.get("maxDistance")),
-            units=parametersMap.get("units").lstrip("'").rstrip("'"),
-            ignoreZeroDistance=parametersMap.get("ignoreZeroDistance").lower() == "true",
+            relation_name=json.loads(pm.get("relation_name").replace("'", '"')),
+            source_schema=pm.get("source_schema"),
+            target_schema=pm.get("target_schema"),
+            sourceColumnName=q("sourceColumnName"),
+            destinationColumnName=q("destinationColumnName"),
+            sourceType=q("sourceType"),
+            targetType=q("targetType"),
+            nearestPoints=int(pm.get("nearestPoints")),
+            maxDistance=int(pm.get("maxDistance")),
+            units=q("units"),
+            ignoreZeroDistance=pm.get("ignoreZeroDistance").lower() == "true",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

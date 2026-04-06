@@ -105,11 +105,11 @@ class Buffer(MacroSpec):
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
         arguments = [
-            str(props.relation_name),   
+            json.dumps(props.relation_name),
             props.schema,
-            f"'{props.geometryColumnName}'",            
+            f"'{props.geometryColumnName}'",
             str(props.distance),
-            f"'{props.unit}'"
+            f"'{props.unit}'",
         ]
 
         params = ",".join([param for param in arguments])
@@ -121,12 +121,28 @@ class Buffer(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+        # Macro: Buffer(table_name, schema, geom_column_name, distance, unit)
+        raw_rel = (
+            parametersMap.get("table_name")
+            or parametersMap.get("relation_name")
+            or "[]"
+        )
+        schema_raw = parametersMap.get("schema")
+        geom_raw = parametersMap.get("geom_column_name") or parametersMap.get(
+            "geometryColumnName"
+        )
+        unit_raw = parametersMap.get("unit")
+        dist_raw = parametersMap.get("distance")
+        try:
+            distance = int(float(dist_raw)) if dist_raw not in (None, "") else 1
+        except (TypeError, ValueError):
+            distance = 1
         return Buffer.BufferProperties(
-            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
-            schema=parametersMap.get('schema').lstrip("'").rstrip("'"),
-            geometryColumnName=parametersMap.get('geometryColumnName').lstrip("'").rstrip("'"),
-            distance=int(parametersMap.get("distance")),
-            unit=parametersMap.get('unit').lstrip("'").rstrip("'"),
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            schema=(schema_raw or "").lstrip("'").rstrip("'"),
+            geometryColumnName=(geom_raw or "").lstrip("'").rstrip("'"),
+            distance=distance,
+            unit=(unit_raw or "miles").lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -135,9 +151,9 @@ class Buffer(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("table_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
-                MacroParameter("geometryColumnName", str(properties.geometryColumnName)),
+                MacroParameter("geom_column_name", str(properties.geometryColumnName)),
                 MacroParameter("distance", str(properties.distance)),
                 MacroParameter("unit", str(properties.unit)),
             ],

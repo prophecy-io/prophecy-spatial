@@ -206,10 +206,9 @@ class CreatePoint(MacroSpec):
         for field in props.addFields:
             grouped_fields.append([field.longitudeColumnName,field.latitudeColumnName,field.targetColumnName])
 
-        arguments = [
-            "'" + table_name + "'",
-            str(grouped_fields)
-        ]
+        # Macro: CreatePoint(relation, matchFields) — matchFields is a list of triples
+        match_fields_json = json.dumps(grouped_fields)
+        arguments = ["'" + table_name + "'", match_fields_json]
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
@@ -219,39 +218,61 @@ class CreatePoint(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        add_fields_raw = json.loads(parametersMap.get("addFields").replace("'", '"'))
+        # Macro: CreatePoint(relation, matchFields)
+        raw_rel = parametersMap.get("relation") or parametersMap.get("relation_name")
+        if raw_rel is None or str(raw_rel).strip() == "":
+            relation_name = []
+        else:
+            s = str(raw_rel).strip()
+            try:
+                relation_name = json.loads(s.replace("'", '"'))
+                if not isinstance(relation_name, list):
+                    relation_name = [str(relation_name)]
+            except json.JSONDecodeError:
+                relation_name = [p for p in s.split(",") if p.strip()] or [s]
+
+        raw_mf = parametersMap.get("matchFields") or parametersMap.get("addFields") or "[]"
+        parsed_mf = json.loads(str(raw_mf).replace("'", '"'))
+        if not isinstance(parsed_mf, list):
+            parsed_mf = []
+
         add_fields = []
-        for r in add_fields_raw:
-            add_fields.append(
-                CreatePoint.AddMatchField(
-                    longitudeColumnName=r.get("longitudeColumnName") or "",
-                    latitudeColumnName=r.get("latitudeColumnName") or "",
-                    targetColumnName=r.get("targetColumnName") or "",
+        for row in parsed_mf:
+            if isinstance(row, list) and len(row) >= 3:
+                add_fields.append(
+                    CreatePoint.AddMatchField(
+                        longitudeColumnName=row[0] or "",
+                        latitudeColumnName=row[1] or "",
+                        targetColumnName=row[2] or "",
+                    )
                 )
-            )
+            elif isinstance(row, dict):
+                add_fields.append(
+                    CreatePoint.AddMatchField(
+                        longitudeColumnName=row.get("longitudeColumnName") or "",
+                        latitudeColumnName=row.get("latitudeColumnName") or "",
+                        targetColumnName=row.get("targetColumnName") or "",
+                    )
+                )
+
         return CreatePoint.CreatePointProperties(
-            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            relation_name=relation_name,
             addFields=add_fields,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
-        add_fields_json = json.dumps(
-            [
-                {
-                    "longitudeColumnName": f.longitudeColumnName,
-                    "latitudeColumnName": f.latitudeColumnName,
-                    "targetColumnName": f.targetColumnName,
-                }
-                for f in properties.addFields
-            ]
-        )
+        table_name = ",".join(str(rel) for rel in properties.relation_name)
+        match_fields = [
+            [f.longitudeColumnName, f.latitudeColumnName, f.targetColumnName]
+            for f in properties.addFields
+        ]
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("addFields", add_fields_json),
+                MacroParameter("relation", table_name),
+                MacroParameter("matchFields", json.dumps(match_fields)),
             ],
         )
 

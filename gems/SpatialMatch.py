@@ -220,6 +220,10 @@ class SpatialMatch(MacroSpec):
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
 
+        def _parse_schemas(raw: str) -> List[List[str]]:
+            schema_list = json.loads((raw or "[]").replace("'", '"'))
+            return schema_list
+
         raw_rel = parametersMap.get("relation_name") or "[]"
         raw_schemas = parametersMap.get("schemas") or "[]"
 
@@ -228,24 +232,35 @@ class SpatialMatch(MacroSpec):
         target_column_raw = (parametersMap.get("target_column") or "''").lstrip("'").rstrip("'")
 
         return SpatialMatch.SpatialMatchProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
-            schemas=json.loads(raw_schemas.replace("'", '"')),
+            relation_name=json.loads(raw_rel.replace("'", '")),
+            schemas=_parse_schemas(raw_schemas),
             match_type=match_type_raw,
             source_column=source_column_raw,
             target_column=target_column_raw,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        schemas_json = json.dumps(properties.schemas or [])
+        schemas_json = json.dumps(
+            properties.schemas or [],
+        )
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schemas", schemas_json),
-                MacroParameter("match_type", str(properties.match_type or "")),
-                MacroParameter("source_column", str(properties.source_column or "")),
-                MacroParameter("target_column", str(properties.target_column or "")),
+                MacroParameter(
+                    "match_type",
+                    str(properties.match_type or ""),
+                ),
+                MacroParameter(
+                    "source_column",
+                    str(properties.source_column or ""),
+                ),
+                MacroParameter(
+                    "target_column",
+                    str(properties.target_column or ""),
+                ),
             ],
         )
 

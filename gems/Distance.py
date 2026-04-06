@@ -233,20 +233,21 @@ class Distance(MacroSpec):
         source_type_raw = (parametersMap.get("sourceType") or "''").lstrip("'").rstrip("'")
         destination_type_raw = (parametersMap.get("destinationType") or "''").lstrip("'").rstrip("'")
         units_raw = (parametersMap.get("units") or "''").lstrip("'").rstrip("'")
+        units = units_raw if units_raw and units_raw != "None" else "kms"
 
-        output_distance_raw = parametersMap.get("outputDistance") or "false"
-        output_card_raw = parametersMap.get("outputCardDirection") or "false"
-        output_deg_raw = parametersMap.get("outputDirectionDegrees") or "false"
+        output_distance_raw = parametersMap.get("outputDistance")
+        output_card_raw = parametersMap.get("outputCardDirection")
+        output_deg_raw = parametersMap.get("outputDirectionDegrees")
 
         return Distance.DistanceProperties(
             relation_name=json.loads(raw_rel.replace("'", '"')),
             schema=parametersMap.get("schema") or "",
             sourceColumnNames=source_column_raw,
             destinationColumnNames=destination_column_raw,
-            sourceType=source_type_raw if source_type_raw else "point",
-            destinationType=destination_type_raw if destination_type_raw else "point",
+            sourceType=source_type_raw,
+            destinationType=destination_type_raw,
             outputDistance=output_distance_raw.lower() == "true",
-            units=units_raw if units_raw and units_raw != "None" else "kms",
+            units=units,
             outputCardDirection=output_card_raw.lower() == "true",
             outputDirectionDegrees=output_deg_raw.lower() == "true",
         )

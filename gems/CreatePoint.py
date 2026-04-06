@@ -220,9 +220,9 @@ class CreatePoint(MacroSpec):
             item_list = json.loads((raw or "[]").replace("'", '"'))
             return [
                 CreatePoint.AddMatchField(
-                    longitudeColumnName=str(i.get("longitudeColumnName", "") or ""),
-                    latitudeColumnName=str(i.get("latitudeColumnName", "") or ""),
-                    targetColumnName=str(i.get("targetColumnName", "") or ""),
+                    longitudeColumnName=i.get("longitudeColumnName", "") or "",
+                    latitudeColumnName=i.get("latitudeColumnName", "") or "",
+                    targetColumnName=i.get("targetColumnName", "") or "",
                 )
                 for i in item_list
             ]

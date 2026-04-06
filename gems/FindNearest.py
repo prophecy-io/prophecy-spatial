@@ -244,13 +244,9 @@ class FindNearest(MacroSpec):
         source_type_raw = (parametersMap.get("sourceType") or "''").lstrip("'").rstrip("'")
         target_type_raw = (parametersMap.get("targetType") or "''").lstrip("'").rstrip("'")
         units_raw = (parametersMap.get("units") or "''").lstrip("'").rstrip("'")
+        units = units_raw if units_raw and units_raw != "None" else "kms"
 
-        nearest_raw = parametersMap.get("nearestPoints")
-        nearest_points = int(nearest_raw) if nearest_raw not in (None, "") else 1
-        max_distance_raw = parametersMap.get("maxDistance")
-        max_distance = int(max_distance_raw) if max_distance_raw not in (None, "") else 20
-
-        ignore_zero_raw = parametersMap.get("ignoreZeroDistance") or "false"
+        ignore_zero_raw = parametersMap.get("ignoreZeroDistance")
 
         return FindNearest.FindNearestProperties(
             relation_name=json.loads(raw_rel.replace("'", '"')),
@@ -258,11 +254,11 @@ class FindNearest(MacroSpec):
             target_schema=parametersMap.get("target_schema") or "",
             sourceColumnName=source_column_raw,
             destinationColumnName=destination_column_raw,
-            sourceType=source_type_raw if source_type_raw else "point",
-            targetType=target_type_raw if target_type_raw else "point",
-            nearestPoints=nearest_points,
-            maxDistance=max_distance,
-            units=units_raw if units_raw and units_raw != "None" else "kms",
+            sourceType=source_type_raw,
+            targetType=target_type_raw,
+            nearestPoints=int(parametersMap.get("nearestPoints")),
+            maxDistance=int(parametersMap.get("maxDistance")),
+            units=units,
             ignoreZeroDistance=ignore_zero_raw.lower() == "true",
         )
 

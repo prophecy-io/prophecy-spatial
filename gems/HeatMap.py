@@ -243,19 +243,14 @@ class HeatMap(MacroSpec):
         decay_raw = (parametersMap.get("decayType") or "''").lstrip("'").rstrip("'")
         decay = decay_raw if decay_raw and decay_raw != "None" else "constant"
 
-        resolution_raw = parametersMap.get("resolution")
-        resolution = int(resolution_raw) if resolution_raw not in (None, "") else 8
-        grid_raw = parametersMap.get("gridDistance")
-        grid_distance = int(grid_raw) if grid_raw not in (None, "") else 1
-
         return HeatMap.HeatMapProperties(
             relation_name=json.loads(raw_rel.replace("'", '"')),
             longitudeColumnName=longitude_raw,
             latitudeColumnName=latitude_raw,
             heatColumnName=heat_raw,
             decayType=decay,
-            resolution=resolution,
-            gridDistance=grid_distance,
+            resolution=int(parametersMap.get("resolution")),
+            gridDistance=int(parametersMap.get("gridDistance")),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:

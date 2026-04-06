@@ -201,7 +201,7 @@ class PolyBuild(MacroSpec):
 
         return PolyBuild.PolyBuildProperties(
             relation_name=json.loads(raw_rel.replace("'", '"')),
-            buildMethod=build_method_raw if build_method_raw else "SequencePolygon",
+            buildMethod=build_method_raw,
             longitudeColumnName=longitude_raw,
             latitudeColumnName=latitude_raw,
             groupColumnName=group_raw,

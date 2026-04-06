@@ -139,13 +139,8 @@ class Simplify(MacroSpec):
 
         raw_rel = parametersMap.get("relation_name") or "[]"
 
-        geom_column_raw = (
-            parametersMap.get("geom_column_name")
-            or parametersMap.get("destinationColumnNames")
-            or "''"
-        ).lstrip("'").rstrip("'")
-        tolerance_raw = parametersMap.get("tolerance")
-        tolerance = str(tolerance_raw) if tolerance_raw is not None else "1"
+        geom_column_raw = (parametersMap.get("geom_column_name") or "''").lstrip("'").rstrip("'")
+        tolerance = str(parametersMap.get("tolerance"))
         unit_raw = (parametersMap.get("unit") or "''").lstrip("'").rstrip("'")
         unit = unit_raw if unit_raw and unit_raw != "None" else "kms"
 

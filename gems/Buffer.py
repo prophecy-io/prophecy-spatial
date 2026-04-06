@@ -121,13 +121,7 @@ class Buffer(MacroSpec):
 
         raw_rel = parametersMap.get("relation_name") or "[]"
 
-        geometry_column_raw = (
-            parametersMap.get("geometryColumnName")
-            or parametersMap.get("destinationColumnNames")
-            or "''"
-        ).lstrip("'").rstrip("'")
-        distance_raw = parametersMap.get("distance")
-        distance = int(distance_raw) if distance_raw not in (None, "") else 1
+        geometry_column_raw = (parametersMap.get("geometryColumnName") or "''").lstrip("'").rstrip("'")
         unit_raw = (parametersMap.get("unit") or "''").lstrip("'").rstrip("'")
         unit = unit_raw if unit_raw and unit_raw != "None" else "miles"
 
@@ -135,7 +129,7 @@ class Buffer(MacroSpec):
             relation_name=json.loads(raw_rel.replace("'", '"')),
             schema=parametersMap.get("schema") or "",
             geometryColumnName=geometry_column_raw,
-            distance=distance,
+            distance=int(parametersMap.get("distance")),
             unit=unit,
         )
 

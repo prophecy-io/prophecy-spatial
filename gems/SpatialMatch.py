@@ -232,7 +232,7 @@ class SpatialMatch(MacroSpec):
         target_column_raw = (parametersMap.get("target_column") or "''").lstrip("'").rstrip("'")
 
         return SpatialMatch.SpatialMatchProperties(
-            relation_name=json.loads(raw_rel.replace("'", '")),
+            relation_name=json.loads(raw_rel.replace("'", '"')),
             schemas=_parse_schemas(raw_schemas),
             match_type=match_type_raw,
             source_column=source_column_raw,

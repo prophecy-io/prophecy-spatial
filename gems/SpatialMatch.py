@@ -17,7 +17,7 @@ class SpatialMatch(MacroSpec):
     supportedProviderTypes: list[ProviderTypeEnum] = [
         ProviderTypeEnum.Databricks,
         # ProviderTypeEnum.Snowflake,
-        # ProviderTypeEnum.BigQuery,
+        ProviderTypeEnum.BigQuery,
         # ProviderTypeEnum.ProphecyManaged
     ]
 
@@ -68,14 +68,18 @@ class SpatialMatch(MacroSpec):
                     .addColumn(
                     StackLayout(height="100%")
                         .addElement(
-                            AlertBox(
-                                variant="warning",
-                                _children=[
-                                    Markdown(
-                                        "**This Gem uses Databricks Spatial SQL features currently in Private Preview.**\n\n"
-                                        "To enable these capabilities, please contact your Databricks representative. For more information, see the [Databricks Preview Feature Documentation](https://docs.databricks.com/en/admin/workspace-settings/manage-previews.html)."
-                                    )
-                                ]
+                            Condition()
+                            .ifEqual(PropExpr("$.sql.metainfo.providerType"), StringExpr("databricks"))
+                            .then(
+                                AlertBox(
+                                    variant="warning",
+                                    _children=[
+                                        Markdown(
+                                            "**This Gem uses Databricks Spatial SQL features currently in Private Preview.**\n\n"
+                                            "To enable these capabilities, please contact your Databricks representative. For more information, see the [Databricks Preview Feature Documentation](https://docs.databricks.com/en/admin/workspace-settings/manage-previews.html)."
+                                        )
+                                    ]
+                                )       
                             )
                         )
                         .addElement(
@@ -214,28 +218,34 @@ class SpatialMatch(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+
+        raw_rel = parametersMap.get("relation_name") or "[]"
+        raw_schemas = parametersMap.get("schemas") or "[]"
+
+        match_type_raw = (parametersMap.get("match_type") or "''").lstrip("'").rstrip("'")
+        source_column_raw = (parametersMap.get("source_column") or "''").lstrip("'").rstrip("'")
+        target_column_raw = (parametersMap.get("target_column") or "''").lstrip("'").rstrip("'")
+
         return SpatialMatch.SpatialMatchProperties(
-            relation_name=parametersMap.get('relation_name'),
-            schemas=parametersMap.get("schemas"),
-            match_type=parametersMap.get('match_type'),
-            source_column=parametersMap.get('source_column'),
-            target_column=parametersMap.get('target_column')                          
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            schemas=json.loads(raw_schemas.replace("'", '"')),
+            match_type=match_type_raw,
+            source_column=source_column_raw,
+            target_column=target_column_raw,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
+        schemas_json = json.dumps(properties.schemas or [])
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("schemas",       str(properties.schemas)),
-                MacroParameter("match_type", str(properties.match_type)),
-                MacroParameter("source_column", str(properties.source_column)),
-                MacroParameter("target_column", str(properties.target_column))                                
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("schemas", schemas_json),
+                MacroParameter("match_type", str(properties.match_type or "")),
+                MacroParameter("source_column", str(properties.source_column or "")),
+                MacroParameter("target_column", str(properties.target_column or "")),
             ],
         )
 
@@ -246,6 +256,6 @@ class SpatialMatch(MacroSpec):
         newProperties = dataclasses.replace(
             component.properties,
             relation_name=relation_name,
-            schemas=self._extract_schemas(newState)
+            schemas=self.extract_schemas(component),
         )
         return component.bindProperties(newProperties)

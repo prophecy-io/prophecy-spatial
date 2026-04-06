@@ -214,19 +214,44 @@ class CreatePoint(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+
+        def _parse_add_fields(raw: str) -> List[MatchField]:
+            item_list = json.loads((raw or "[]").replace("'", '"'))
+            return [
+                CreatePoint.AddMatchField(
+                    longitudeColumnName=str(i.get("longitudeColumnName", "") or ""),
+                    latitudeColumnName=str(i.get("latitudeColumnName", "") or ""),
+                    targetColumnName=str(i.get("targetColumnName", "") or ""),
+                )
+                for i in item_list
+            ]
+
+        raw_rel = parametersMap.get("relation_name") or "[]"
+        raw_add_fields = parametersMap.get("addFields") or "[]"
+
         return CreatePoint.CreatePointProperties(
-            relation_name=parametersMap.get('relation_name')
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            addFields=_parse_add_fields(raw_add_fields),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
+        add_fields_json = json.dumps(
+            [
+                {
+                    "longitudeColumnName": f.longitudeColumnName or "",
+                    "latitudeColumnName": f.latitudeColumnName or "",
+                    "targetColumnName": f.targetColumnName or "",
+                }
+                for f in (properties.addFields or [])
+            ]
+        )
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name))
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("addFields", add_fields_json),
             ],
         )
 

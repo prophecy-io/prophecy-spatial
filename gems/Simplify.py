@@ -1,5 +1,6 @@
 import dataclasses
 import json
+from dataclasses import dataclass, field
 
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
@@ -134,27 +135,41 @@ class Simplify(MacroSpec):
 
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+
+        raw_rel = parametersMap.get("relation_name") or "[]"
+
+        geom_column_raw = (
+            parametersMap.get("geom_column_name")
+            or parametersMap.get("destinationColumnNames")
+            or "''"
+        ).lstrip("'").rstrip("'")
+        tolerance_raw = parametersMap.get("tolerance")
+        tolerance = str(tolerance_raw) if tolerance_raw is not None else "1"
+        unit_raw = (parametersMap.get("unit") or "''").lstrip("'").rstrip("'")
+        unit = unit_raw if unit_raw and unit_raw != "None" else "kms"
+
         return Simplify.SimplifyProperties(
-            relation_name=parametersMap.get('relation_name'),
-            schema=parametersMap.get('schema'),
-            geom_column_name=parametersMap.get('geom_column_name'),
-            tolerance=int(parametersMap.get('tolerance')),
-            unit=str(parametersMap.get('unit'))
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            schema=parametersMap.get("schema") or "",
+            geom_column_name=geom_column_raw,
+            tolerance=tolerance,
+            unit=unit,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema)),
-                MacroParameter("destinationColumnNames", properties.geom_column_name),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema or "")),
+                MacroParameter(
+                    "geom_column_name",
+                    properties.geom_column_name,
+                ),
                 MacroParameter("tolerance", str(properties.tolerance)),
-                MacroParameter("unit", properties.unit)
+                MacroParameter("unit", properties.unit),
             ],
         )
 

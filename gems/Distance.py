@@ -224,38 +224,60 @@ class Distance(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+
+        raw_rel = parametersMap.get("relation_name") or "[]"
+
+        source_column_raw = (parametersMap.get("sourceColumnNames") or "''").lstrip("'").rstrip("'")
+        destination_column_raw = (parametersMap.get("destinationColumnNames") or "''").lstrip("'").rstrip("'")
+        source_type_raw = (parametersMap.get("sourceType") or "''").lstrip("'").rstrip("'")
+        destination_type_raw = (parametersMap.get("destinationType") or "''").lstrip("'").rstrip("'")
+        units_raw = (parametersMap.get("units") or "''").lstrip("'").rstrip("'")
+
+        output_distance_raw = parametersMap.get("outputDistance") or "false"
+        output_card_raw = parametersMap.get("outputCardDirection") or "false"
+        output_deg_raw = parametersMap.get("outputDirectionDegrees") or "false"
+
         return Distance.DistanceProperties(
-            relation_name=parametersMap.get('relation_name'),
-            schema=parametersMap.get('schema'),
-            sourceColumnNames=parametersMap.get('sourceColumnNames'),
-            destinationColumnNames=parametersMap.get('destinationColumnNames'),
-            sourceType=parametersMap.get('sourceType'),
-            destinationType=parametersMap.get('destinationType'),
-            outputDistance=parametersMap.get('outputDistance').lower() == 'true',
-            units=parametersMap.get('units'),
-            outputCardDirection=parametersMap.get('outputCardDirection').lower() == 'true',
-            outputDirectionDegrees=parametersMap.get('outputDirectionDegrees').lower() == 'true'
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            schema=parametersMap.get("schema") or "",
+            sourceColumnNames=source_column_raw,
+            destinationColumnNames=destination_column_raw,
+            sourceType=source_type_raw if source_type_raw else "point",
+            destinationType=destination_type_raw if destination_type_raw else "point",
+            outputDistance=output_distance_raw.lower() == "true",
+            units=units_raw if units_raw and units_raw != "None" else "kms",
+            outputCardDirection=output_card_raw.lower() == "true",
+            outputDirectionDegrees=output_deg_raw.lower() == "true",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema or "")),
                 MacroParameter("sourceColumnNames", properties.sourceColumnNames),
-                MacroParameter("destinationColumnNames", properties.destinationColumnNames),
+                MacroParameter(
+                    "destinationColumnNames",
+                    properties.destinationColumnNames,
+                ),
                 MacroParameter("sourceType", properties.sourceType),
                 MacroParameter("destinationType", properties.destinationType),
-                MacroParameter("outputDistance", str(properties.outputDistance).lower()),
+                MacroParameter(
+                    "outputDistance",
+                    str(properties.outputDistance).lower(),
+                ),
                 MacroParameter("units", properties.units),
-                MacroParameter("outputCardDirection", str(properties.outputCardDirection).lower()),
-                MacroParameter("outputDirectionDegrees", str(properties.outputDirectionDegrees).lower())
+                MacroParameter(
+                    "outputCardDirection",
+                    str(properties.outputCardDirection).lower(),
+                ),
+                MacroParameter(
+                    "outputDirectionDegrees",
+                    str(properties.outputDirectionDegrees).lower(),
+                ),
             ],
         )
 

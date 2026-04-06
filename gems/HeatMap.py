@@ -1,5 +1,6 @@
 import dataclasses
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
 
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *
@@ -232,31 +233,43 @@ class HeatMap(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+
+        raw_rel = parametersMap.get("relation_name") or "[]"
+
+        longitude_raw = (parametersMap.get("longitudeColumnName") or "''").lstrip("'").rstrip("'")
+        latitude_raw = (parametersMap.get("latitudeColumnName") or "''").lstrip("'").rstrip("'")
+        heat_raw = (parametersMap.get("heatColumnName") or "''").lstrip("'").rstrip("'")
+        decay_raw = (parametersMap.get("decayType") or "''").lstrip("'").rstrip("'")
+        decay = decay_raw if decay_raw and decay_raw != "None" else "constant"
+
+        resolution_raw = parametersMap.get("resolution")
+        resolution = int(resolution_raw) if resolution_raw not in (None, "") else 8
+        grid_raw = parametersMap.get("gridDistance")
+        grid_distance = int(grid_raw) if grid_raw not in (None, "") else 1
+
         return HeatMap.HeatMapProperties(
-            relation_name=parametersMap.get('relation_name'),
-            longitudeColumnName=parametersMap.get('longitudeColumnName'),
-            latitudeColumnName=parametersMap.get('latitudeColumnName'),
-            resolution=int(parametersMap.get('resolution')),
-            gridDistance=int(parametersMap.get('gridDistance')),
-            heatColumnName=parametersMap.get('heatColumnName'),
-            decayType=parametersMap.get('decayType')
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            longitudeColumnName=longitude_raw,
+            latitudeColumnName=latitude_raw,
+            heatColumnName=heat_raw,
+            decayType=decay,
+            resolution=resolution,
+            gridDistance=grid_distance,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("longitudeColumnName", properties.longitudeColumnName),
                 MacroParameter("latitudeColumnName", properties.latitudeColumnName),
                 MacroParameter("resolution", str(properties.resolution)),
                 MacroParameter("gridDistance", str(properties.gridDistance)),
                 MacroParameter("heatColumnName", str(properties.heatColumnName)),
-                MacroParameter("decayType", str(properties.decayType))
+                MacroParameter("decayType", str(properties.decayType)),
             ],
         )
 

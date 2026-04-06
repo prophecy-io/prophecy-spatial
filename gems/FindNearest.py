@@ -235,40 +235,59 @@ class FindNearest(MacroSpec):
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-
-        # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+
+        raw_rel = parametersMap.get("relation_name") or "[]"
+
+        source_column_raw = (parametersMap.get("sourceColumnName") or "''").lstrip("'").rstrip("'")
+        destination_column_raw = (parametersMap.get("destinationColumnName") or "''").lstrip("'").rstrip("'")
+        source_type_raw = (parametersMap.get("sourceType") or "''").lstrip("'").rstrip("'")
+        target_type_raw = (parametersMap.get("targetType") or "''").lstrip("'").rstrip("'")
+        units_raw = (parametersMap.get("units") or "''").lstrip("'").rstrip("'")
+
+        nearest_raw = parametersMap.get("nearestPoints")
+        nearest_points = int(nearest_raw) if nearest_raw not in (None, "") else 1
+        max_distance_raw = parametersMap.get("maxDistance")
+        max_distance = int(max_distance_raw) if max_distance_raw not in (None, "") else 20
+
+        ignore_zero_raw = parametersMap.get("ignoreZeroDistance") or "false"
+
         return FindNearest.FindNearestProperties(
-            relation_name=parametersMap.get('relation_name'),
-            source_schema=parametersMap.get('source_schema'),
-            target_schema=parametersMap.get('target_schema'),
-            sourceColumnName=parametersMap.get('sourceColumnName'),
-            destinationColumnName=parametersMap.get('destinationColumnName'),
-            sourceType=parametersMap.get('sourceType'),
-            targetType=parametersMap.get('targetType'),
-            nearestPoints=float(parametersMap.get('nearestPoints')),
-            maxDistance=float(parametersMap.get('maxDistance')),
-            units=parametersMap.get('units'),
-            ignoreZeroDistance=parametersMap.get('ignoreZeroDistance').lower() == 'true'
+            relation_name=json.loads(raw_rel.replace("'", '"')),
+            source_schema=parametersMap.get("source_schema") or "",
+            target_schema=parametersMap.get("target_schema") or "",
+            sourceColumnName=source_column_raw,
+            destinationColumnName=destination_column_raw,
+            sourceType=source_type_raw if source_type_raw else "point",
+            targetType=target_type_raw if target_type_raw else "point",
+            nearestPoints=nearest_points,
+            maxDistance=max_distance,
+            units=units_raw if units_raw and units_raw != "None" else "kms",
+            ignoreZeroDistance=ignore_zero_raw.lower() == "true",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        # convert component's state to default macro property representation
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("source_schema", str(properties.source_schema)),
-                MacroParameter("target_schema", str(properties.target_schema)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("source_schema", str(properties.source_schema or "")),
+                MacroParameter("target_schema", str(properties.target_schema or "")),
                 MacroParameter("sourceColumnName", properties.sourceColumnName),
-                MacroParameter("destinationColumnName", properties.destinationColumnName),
+                MacroParameter(
+                    "destinationColumnName",
+                    properties.destinationColumnName,
+                ),
                 MacroParameter("sourceType", properties.sourceType),
                 MacroParameter("targetType", properties.targetType),
                 MacroParameter("nearestPoints", str(properties.nearestPoints)),
                 MacroParameter("maxDistance", str(properties.maxDistance)),
                 MacroParameter("units", properties.units),
-                MacroParameter("ignoreZeroDistance", str(properties.ignoreZeroDistance).lower())
+                MacroParameter(
+                    "ignoreZeroDistance",
+                    str(properties.ignoreZeroDistance).lower(),
+                ),
             ],
         )
 

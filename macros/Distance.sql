@@ -20,7 +20,6 @@
     allColumnNames)) }}
 {% endmacro %}
 
-
 {%- macro default__Distance(
     relation_name,
     sourceColumnNames,
@@ -169,11 +168,7 @@
     allColumnNames=[]
 ) -%}
 
-  {% set cols_str -%}
-    {%- for col in allColumnNames -%}
-      "{{ col }}"{{ "," if not loop.last }}
-    {%- endfor -%}
-  {%- endset %}
+  {%- set cols_str = prophecy_basics.quote_column_list(allColumnNames | join(', ')) -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
@@ -206,14 +201,32 @@
       SELECT
         {{ cols_str }},
 
-        -- Extract lon/lat from "POINT(lon lat)"
-        CAST(SPLIT_PART(SPLIT_PART({{ sourceColumnNames }}, '(', 2), ' ', 1) AS DOUBLE) AS lon1,
-        CAST(SPLIT_PART(SPLIT_PART({{ sourceColumnNames }}, ' ', 2), ')', 1) AS DOUBLE) AS lat1,
+        -- Extract lon/lat from WKT POINT(lon lat)
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 1)
+        AS DOUBLE) AS lon1,
 
-        CAST(SPLIT_PART(SPLIT_PART({{ destinationColumnNames }}, '(', 2), ' ', 1) AS DOUBLE) AS lon2,
-        CAST(SPLIT_PART(SPLIT_PART({{ destinationColumnNames }}, ' ', 2), ')', 1) AS DOUBLE) AS lat2
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 2)
+        AS DOUBLE) AS lat1,
 
-      FROM {{ relation_name }}
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 1)
+        AS DOUBLE) AS lon2,
+
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 2)
+        AS DOUBLE) AS lat2
+
+      FROM {{ prophecy_basics.quote_identifier(relation_name) }}
     )
 
     {%- if needs_bearing %}
@@ -285,7 +298,7 @@
 
   {%- else -%}
 
-    SELECT * FROM {{ relation_name }}
+    SELECT * FROM {{ prophecy_basics.quote_identifier(relation_name) }}
 
   {%- endif -%}
 

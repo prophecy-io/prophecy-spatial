@@ -8,7 +8,7 @@
     outputCardDirection,
     outputDirectionDegrees,
     allColumnNames=[]) -%}
-    {{ return(adapter.dispatch('Distance', 'prophecy_spatial')(relation_name,
+    {{ return(adapter.dispatch('Distance')(relation_name,
     sourceColumnNames,
     destinationColumnNames,
     sourceType,

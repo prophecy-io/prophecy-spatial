@@ -84,6 +84,6 @@
       )
     ) as output
   FROM
-    {{table_name}}
+    {{ table_name | join(', ') }}
 
 {%- endmacro -%}

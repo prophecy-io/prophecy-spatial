@@ -97,14 +97,12 @@ class Buffer(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: BufferProperties) -> str:
-        # Get the table name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
 
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
         arguments = [
-            f"'{table_name}'",   
+            str(props.relation_name),   
             props.schema,
             f"'{props.geometryColumnName}'",            
             str(props.distance),
@@ -119,7 +117,7 @@ class Buffer(MacroSpec):
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return Buffer.BufferProperties(
-            relation_name=parametersMap.get('relation_name'),
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
             schema=parametersMap.get('schema'),
             geometryColumnName=parametersMap.get('geometryColumnName'),
             distance=int(parametersMap.get('distance')),
@@ -132,7 +130,7 @@ class Buffer(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
                 MacroParameter("destinationColumnNames", properties.geometryColumnName),
                 MacroParameter("distance", str(properties.distance)),

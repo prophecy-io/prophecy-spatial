@@ -104,9 +104,20 @@ class Buffer(MacroSpec):
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
+        def safe_str(val):
+            """SQL string literal for macro args (same pattern as GenerateRows / Regex for schema)."""
+            if val is None or val == "":
+                return "''"
+            if isinstance(val, str):
+                escaped = val.replace("'", "''")
+                return f"'{escaped}'"
+            if isinstance(val, list):
+                return str(val)
+            return f"'{str(val)}'"
+
         arguments = [
             json.dumps(props.relation_name),
-            props.schema,
+            safe_str(props.schema),
             f"'{props.geometryColumnName}'",
             str(props.distance),
             f"'{props.unit}'",
@@ -127,6 +138,7 @@ class Buffer(MacroSpec):
             or parametersMap.get("relation_name")
             or "[]"
         )
+        # schema: macro arg is a SQL string literal (safe_str in apply); strip like Regex / GenerateRows
         schema_raw = parametersMap.get("schema")
         geom_raw = parametersMap.get("geom_column_name") or parametersMap.get(
             "geometryColumnName"
@@ -137,9 +149,14 @@ class Buffer(MacroSpec):
             distance = int(float(dist_raw)) if dist_raw not in (None, "") else 1
         except (TypeError, ValueError):
             distance = 1
+        schema_val = (
+            str(schema_raw).lstrip("'").rstrip("'")
+            if schema_raw not in (None, "")
+            else ""
+        )
         return Buffer.BufferProperties(
             relation_name=json.loads(raw_rel.replace("'", '"')),
-            schema=(schema_raw or "").lstrip("'").rstrip("'"),
+            schema=schema_val,
             geometryColumnName=(geom_raw or "").lstrip("'").rstrip("'"),
             distance=distance,
             unit=(unit_raw or "miles").lstrip("'").rstrip("'"),

@@ -136,20 +136,12 @@ class Simplify(MacroSpec):
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
-
-        raw_rel = parametersMap.get("relation_name") or "[]"
-
-        geom_column_raw = (parametersMap.get("geom_column_name") or "''").lstrip("'").rstrip("'")
-        tolerance = str(parametersMap.get("tolerance"))
-        unit_raw = (parametersMap.get("unit") or "''").lstrip("'").rstrip("'")
-        unit = unit_raw if unit_raw and unit_raw != "None" else "kms"
-
         return Simplify.SimplifyProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
-            schema=parametersMap.get("schema") or "",
-            geom_column_name=geom_column_raw,
-            tolerance=tolerance,
-            unit=unit,
+            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
+            schema=parametersMap.get("schema"),
+            geom_column_name=parametersMap.get("geom_column_name").lstrip("'").rstrip("'"),
+            tolerance=str(parametersMap.get("tolerance")),
+            unit=parametersMap.get("unit").lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -158,11 +150,8 @@ class Simplify(MacroSpec):
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema or "")),
-                MacroParameter(
-                    "geom_column_name",
-                    properties.geom_column_name,
-                ),
+                MacroParameter("schema", str(properties.schema)),
+                MacroParameter("geom_column_name", properties.geom_column_name),
                 MacroParameter("tolerance", str(properties.tolerance)),
                 MacroParameter("unit", properties.unit),
             ],

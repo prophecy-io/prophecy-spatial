@@ -190,22 +190,13 @@ class PolyBuild(MacroSpec):
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
-
-        raw_rel = parametersMap.get("relation_name") or "[]"
-
-        build_method_raw = (parametersMap.get("buildMethod") or "''").lstrip("'").rstrip("'")
-        longitude_raw = (parametersMap.get("longitudeColumnName") or "''").lstrip("'").rstrip("'")
-        latitude_raw = (parametersMap.get("latitudeColumnName") or "''").lstrip("'").rstrip("'")
-        group_raw = (parametersMap.get("groupColumnName") or "''").lstrip("'").rstrip("'")
-        sequence_raw = (parametersMap.get("sequenceColumnName") or "''").lstrip("'").rstrip("'")
-
         return PolyBuild.PolyBuildProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
-            buildMethod=build_method_raw,
-            longitudeColumnName=longitude_raw,
-            latitudeColumnName=latitude_raw,
-            groupColumnName=group_raw,
-            sequenceColumnName=sequence_raw,
+            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
+            buildMethod=parametersMap.get("buildMethod").lstrip("'").rstrip("'"),
+            longitudeColumnName=parametersMap.get("longitudeColumnName").lstrip("'").rstrip("'"),
+            latitudeColumnName=parametersMap.get("latitudeColumnName").lstrip("'").rstrip("'"),
+            groupColumnName=parametersMap.get("groupColumnName").lstrip("'").rstrip("'"),
+            sequenceColumnName=parametersMap.get("sequenceColumnName").lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -218,10 +209,7 @@ class PolyBuild(MacroSpec):
                 MacroParameter("longitudeColumnName", properties.longitudeColumnName),
                 MacroParameter("latitudeColumnName", properties.latitudeColumnName),
                 MacroParameter("groupColumnName", properties.groupColumnName),
-                MacroParameter(
-                    "sequenceColumnName",
-                    properties.sequenceColumnName,
-                ),
+                MacroParameter("sequenceColumnName", properties.sequenceColumnName),
             ],
         )
 

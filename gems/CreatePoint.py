@@ -215,43 +215,32 @@ class CreatePoint(MacroSpec):
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
-
-        def _parse_add_fields(raw: str) -> List[MatchField]:
-            item_list = json.loads((raw or "[]").replace("'", '"'))
-            return [
+        return CreatePoint.CreatePointProperties(
+            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
+            addFields=[
                 CreatePoint.AddMatchField(
                     longitudeColumnName=i.get("longitudeColumnName", "") or "",
                     latitudeColumnName=i.get("latitudeColumnName", "") or "",
                     targetColumnName=i.get("targetColumnName", "") or "",
                 )
-                for i in item_list
-            ]
-
-        raw_rel = parametersMap.get("relation_name") or "[]"
-        raw_add_fields = parametersMap.get("addFields") or "[]"
-
-        return CreatePoint.CreatePointProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
-            addFields=_parse_add_fields(raw_add_fields),
+                for i in json.loads(parametersMap.get("addFields").replace("'", '"'))
+            ],
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
-        add_fields_json = json.dumps(
-            [
-                {
-                    "longitudeColumnName": f.longitudeColumnName or "",
-                    "latitudeColumnName": f.latitudeColumnName or "",
-                    "targetColumnName": f.targetColumnName or "",
-                }
-                for f in (properties.addFields or [])
-            ]
-        )
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("addFields", add_fields_json),
+                MacroParameter("addFields", json.dumps([
+                    {
+                        "longitudeColumnName": f.longitudeColumnName or "",
+                        "latitudeColumnName": f.latitudeColumnName or "",
+                        "targetColumnName": f.targetColumnName or "",
+                    }
+                    for f in (properties.addFields or [])
+                ])),
             ],
         )
 

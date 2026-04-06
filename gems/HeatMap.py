@@ -234,21 +234,12 @@ class HeatMap(MacroSpec):
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
-
-        raw_rel = parametersMap.get("relation_name") or "[]"
-
-        longitude_raw = (parametersMap.get("longitudeColumnName") or "''").lstrip("'").rstrip("'")
-        latitude_raw = (parametersMap.get("latitudeColumnName") or "''").lstrip("'").rstrip("'")
-        heat_raw = (parametersMap.get("heatColumnName") or "''").lstrip("'").rstrip("'")
-        decay_raw = (parametersMap.get("decayType") or "''").lstrip("'").rstrip("'")
-        decay = decay_raw if decay_raw and decay_raw != "None" else "constant"
-
         return HeatMap.HeatMapProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
-            longitudeColumnName=longitude_raw,
-            latitudeColumnName=latitude_raw,
-            heatColumnName=heat_raw,
-            decayType=decay,
+            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
+            longitudeColumnName=parametersMap.get("longitudeColumnName").lstrip("'").rstrip("'"),
+            latitudeColumnName=parametersMap.get("latitudeColumnName").lstrip("'").rstrip("'"),
+            heatColumnName=parametersMap.get("heatColumnName").lstrip("'").rstrip("'"),
+            decayType=parametersMap.get("decayType").lstrip("'").rstrip("'"),
             resolution=int(parametersMap.get("resolution")),
             gridDistance=int(parametersMap.get("gridDistance")),
         )

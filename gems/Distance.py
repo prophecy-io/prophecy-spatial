@@ -225,31 +225,17 @@ class Distance(MacroSpec):
 
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         parametersMap = self.convertToParameterMap(properties.parameters)
-
-        raw_rel = parametersMap.get("relation_name") or "[]"
-
-        source_column_raw = (parametersMap.get("sourceColumnNames") or "''").lstrip("'").rstrip("'")
-        destination_column_raw = (parametersMap.get("destinationColumnNames") or "''").lstrip("'").rstrip("'")
-        source_type_raw = (parametersMap.get("sourceType") or "''").lstrip("'").rstrip("'")
-        destination_type_raw = (parametersMap.get("destinationType") or "''").lstrip("'").rstrip("'")
-        units_raw = (parametersMap.get("units") or "''").lstrip("'").rstrip("'")
-        units = units_raw if units_raw and units_raw != "None" else "kms"
-
-        output_distance_raw = parametersMap.get("outputDistance")
-        output_card_raw = parametersMap.get("outputCardDirection")
-        output_deg_raw = parametersMap.get("outputDirectionDegrees")
-
         return Distance.DistanceProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
-            schema=parametersMap.get("schema") or "",
-            sourceColumnNames=source_column_raw,
-            destinationColumnNames=destination_column_raw,
-            sourceType=source_type_raw,
-            destinationType=destination_type_raw,
-            outputDistance=output_distance_raw.lower() == "true",
-            units=units,
-            outputCardDirection=output_card_raw.lower() == "true",
-            outputDirectionDegrees=output_deg_raw.lower() == "true",
+            relation_name=json.loads(parametersMap.get("relation_name").replace("'", '"')),
+            schema=parametersMap.get("schema"),
+            sourceColumnNames=parametersMap.get("sourceColumnNames").lstrip("'").rstrip("'"),
+            destinationColumnNames=parametersMap.get("destinationColumnNames").lstrip("'").rstrip("'"),
+            sourceType=parametersMap.get("sourceType").lstrip("'").rstrip("'"),
+            destinationType=parametersMap.get("destinationType").lstrip("'").rstrip("'"),
+            outputDistance=parametersMap.get("outputDistance").lower() == "true",
+            units=parametersMap.get("units").lstrip("'").rstrip("'"),
+            outputCardDirection=parametersMap.get("outputCardDirection").lower() == "true",
+            outputDirectionDegrees=parametersMap.get("outputDirectionDegrees").lower() == "true",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -258,27 +244,15 @@ class Distance(MacroSpec):
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema or "")),
+                MacroParameter("schema", str(properties.schema)),
                 MacroParameter("sourceColumnNames", properties.sourceColumnNames),
-                MacroParameter(
-                    "destinationColumnNames",
-                    properties.destinationColumnNames,
-                ),
+                MacroParameter("destinationColumnNames", properties.destinationColumnNames),
                 MacroParameter("sourceType", properties.sourceType),
                 MacroParameter("destinationType", properties.destinationType),
-                MacroParameter(
-                    "outputDistance",
-                    str(properties.outputDistance).lower(),
-                ),
+                MacroParameter("outputDistance", str(properties.outputDistance).lower()),
                 MacroParameter("units", properties.units),
-                MacroParameter(
-                    "outputCardDirection",
-                    str(properties.outputCardDirection).lower(),
-                ),
-                MacroParameter(
-                    "outputDirectionDegrees",
-                    str(properties.outputDirectionDegrees).lower(),
-                ),
+                MacroParameter("outputCardDirection", str(properties.outputCardDirection).lower()),
+                MacroParameter("outputDirectionDegrees", str(properties.outputDirectionDegrees).lower()),
             ],
         )
 

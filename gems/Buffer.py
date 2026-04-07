@@ -1,6 +1,5 @@
 import dataclasses
 import json
-from dataclasses import dataclass, field
 
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
@@ -46,37 +45,8 @@ class Buffer(MacroSpec):
 
         return relation_name
 
-    @staticmethod
-    def _sql_string_literal(val) -> str:
-        """Single SQL string literal for macro args (GenerateRows / Regex pattern for schema)."""
-        if val is None or val == "":
-            return "''"
-        if isinstance(val, str):
-            return "'" + val.replace("'", "''") + "'"
-        if isinstance(val, list):
-            return "'" + str(val).replace("'", "''") + "'"
-        return "'" + str(val).replace("'", "''") + "'"
-
-    @staticmethod
-    def _strip_sql_string_literal(raw) -> str:
-        """Inverse of _sql_string_literal: requires a single-quoted SQL string; otherwise ''."""
-        if raw is None or raw == "":
-            return ""
-        s = str(raw).strip()
-        if len(s) >= 2 and s[0] == "'" and s[-1] == "'":
-            return s[1:-1].replace("''", "'")
-        return ""
-
-    @classmethod
-    def _parse_table_name_list(cls, raw_rel) -> List[str]:
-        if raw_rel is None or str(raw_rel).strip() == "":
-            return []
-        parsed = json.loads(str(raw_rel).replace("'", '"'))
-        if isinstance(parsed, list):
-            return [str(x) for x in parsed]
-        return [str(parsed)]
-
     def dialog(self) -> Dialog:
+        help = "Add the input geometry to the result along with the output geometry"
         return Dialog("Buffer").addElement(
             ColumnsLayout(gap="1rem", height="100%")
             .addColumn(
@@ -116,10 +86,7 @@ class Buffer(MacroSpec):
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
         schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [
-            {"name": sf["name"], "dataType": sf["dataType"]["type"]}
-            for sf in schema["fields"]
-        ]
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(
@@ -135,70 +102,45 @@ class Buffer(MacroSpec):
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
         arguments = [
-            json.dumps(props.relation_name),
-            self._sql_string_literal(props.schema),
-            self._sql_string_literal(props.geometryColumnName),
+            str(props.relation_name),   
+            props.schema,
+            f"'{props.geometryColumnName}'",            
             str(props.distance),
-            self._sql_string_literal(props.unit),
+            f"'{props.unit}'"
         ]
 
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
-    # -------------------------------------------------------------------------
-    # Property loading/unloading
-    # -------------------------------------------------------------------------
+
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
-        # Macro: Buffer(table_name, schema, geom_column_name, distance, unit)
-        relation_name = self._parse_table_name_list(parametersMap.get("table_name"))
-
-        schema_raw = parametersMap.get("schema")
-        geom_raw = parametersMap.get("geom_column_name")
-        unit_raw = parametersMap.get("unit")
-        dist_raw = parametersMap.get("distance")
-        try:
-            distance = int(float(dist_raw)) if dist_raw not in (None, "") else 1
-        except (TypeError, ValueError):
-            distance = 1
-
-        schema_val = self._strip_sql_string_literal(schema_raw)
-        geometry_col = self._strip_sql_string_literal(geom_raw)
-        unit_val = self._strip_sql_string_literal(unit_raw)
-
         return Buffer.BufferProperties(
-            relation_name=relation_name,
-            schema=schema_val,
-            geometryColumnName=geometry_col,
-            distance=distance,
-            unit=unit_val,
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            schema=parametersMap.get('schema'),
+            geometryColumnName=parametersMap.get('geometryColumnName').lstrip("'").rstrip("'"),
+            distance=int(parametersMap.get('distance')),
+            unit=str(parametersMap.get('unit')).lstrip("'").rstrip("'")
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
-        # Match apply() argument strings exactly (same idea as CreatePoint matchFields ↔ json.dumps).
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("table_name", json.dumps(properties.relation_name)),
-                MacroParameter("schema", self._sql_string_literal(properties.schema)),
-                MacroParameter(
-                    "geom_column_name",
-                    self._sql_string_literal(properties.geometryColumnName),
-                ),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("schema", str(properties.schema)),
+                MacroParameter("destinationColumnNames", properties.geometryColumnName),
                 MacroParameter("distance", str(properties.distance)),
-                MacroParameter("unit", self._sql_string_literal(properties.unit)),
-            ],
+                MacroParameter("unit", properties.unit)
+            ]
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
         schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        fields_array = [
-            {"name": sf["name"], "dataType": sf["dataType"]["type"]}
-            for sf in schema["fields"]
-        ]
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(component, context)
 
         newProperties = dataclasses.replace(

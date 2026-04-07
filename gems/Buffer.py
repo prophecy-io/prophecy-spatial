@@ -46,6 +46,36 @@ class Buffer(MacroSpec):
 
         return relation_name
 
+    @staticmethod
+    def _sql_string_literal(val) -> str:
+        """Single SQL string literal for macro args (GenerateRows / Regex pattern for schema)."""
+        if val is None or val == "":
+            return "''"
+        if isinstance(val, str):
+            return "'" + val.replace("'", "''") + "'"
+        if isinstance(val, list):
+            return "'" + str(val).replace("'", "''") + "'"
+        return "'" + str(val).replace("'", "''") + "'"
+
+    @staticmethod
+    def _strip_sql_string_literal(raw) -> str:
+        """Inverse of _sql_string_literal: requires a single-quoted SQL string; otherwise ''."""
+        if raw is None or raw == "":
+            return ""
+        s = str(raw).strip()
+        if len(s) >= 2 and s[0] == "'" and s[-1] == "'":
+            return s[1:-1].replace("''", "'")
+        return ""
+
+    @classmethod
+    def _parse_table_name_list(cls, raw_rel) -> List[str]:
+        if raw_rel is None or str(raw_rel).strip() == "":
+            return []
+        parsed = json.loads(str(raw_rel).replace("'", '"'))
+        if isinstance(parsed, list):
+            return [str(x) for x in parsed]
+        return [str(parsed)]
+
     def dialog(self) -> Dialog:
         return Dialog("Buffer").addElement(
             ColumnsLayout(gap="1rem", height="100%")
@@ -104,23 +134,12 @@ class Buffer(MacroSpec):
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
-        def safe_str(val):
-            """SQL string literal for macro args (same pattern as GenerateRows / Regex for schema)."""
-            if val is None or val == "":
-                return "''"
-            if isinstance(val, str):
-                escaped = val.replace("'", "''")
-                return f"'{escaped}'"
-            if isinstance(val, list):
-                return str(val)
-            return f"'{str(val)}'"
-
         arguments = [
             json.dumps(props.relation_name),
-            safe_str(props.schema),
-            f"'{props.geometryColumnName}'",
+            self._sql_string_literal(props.schema),
+            self._sql_string_literal(props.geometryColumnName),
             str(props.distance),
-            f"'{props.unit}'",
+            self._sql_string_literal(props.unit),
         ]
 
         params = ",".join([param for param in arguments])
@@ -133,46 +152,44 @@ class Buffer(MacroSpec):
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         # Macro: Buffer(table_name, schema, geom_column_name, distance, unit)
-        raw_rel = (
-            parametersMap.get("table_name")
-            or parametersMap.get("relation_name")
-            or "[]"
-        )
-        # schema: SQL string literal in apply (safe_str); strip outer quotes like Regex / GenerateRows
+        relation_name = self._parse_table_name_list(parametersMap.get("table_name"))
+
         schema_raw = parametersMap.get("schema")
-        geom_raw = parametersMap.get("geom_column_name") or parametersMap.get(
-            "geometryColumnName"
-        )
+        geom_raw = parametersMap.get("geom_column_name")
         unit_raw = parametersMap.get("unit")
         dist_raw = parametersMap.get("distance")
         try:
             distance = int(float(dist_raw)) if dist_raw not in (None, "") else 1
         except (TypeError, ValueError):
             distance = 1
-        schema_val = (
-            str(schema_raw).lstrip("'").rstrip("'")
-            if schema_raw not in (None, "")
-            else ""
-        )
+
+        schema_val = self._strip_sql_string_literal(schema_raw)
+        geometry_col = self._strip_sql_string_literal(geom_raw)
+        unit_val = self._strip_sql_string_literal(unit_raw)
+
         return Buffer.BufferProperties(
-            relation_name=json.loads(str(raw_rel).replace("'", '"')),
+            relation_name=relation_name,
             schema=schema_val,
-            geometryColumnName=(geom_raw or "").lstrip("'").rstrip("'"),
+            geometryColumnName=geometry_col,
             distance=distance,
-            unit=(unit_raw or "miles").lstrip("'").rstrip("'"),
+            unit=unit_val,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
+        # Match apply() argument strings exactly (same idea as CreatePoint matchFields ↔ json.dumps).
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
                 MacroParameter("table_name", json.dumps(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema)),
-                MacroParameter("geom_column_name", str(properties.geometryColumnName)),
+                MacroParameter("schema", self._sql_string_literal(properties.schema)),
+                MacroParameter(
+                    "geom_column_name",
+                    self._sql_string_literal(properties.geometryColumnName),
+                ),
                 MacroParameter("distance", str(properties.distance)),
-                MacroParameter("unit", str(properties.unit)),
+                MacroParameter("unit", self._sql_string_literal(properties.unit)),
             ],
         )
 

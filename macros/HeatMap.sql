@@ -76,11 +76,12 @@
         heatColumnName = none,
         decayType      = 'constant'
     ) -%}
+{% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
 {# ── 0. quick passthrough check ─────────────────────────────────────────────── #}
 {%- if longitudeColumnName | trim | length == 0
       or latitudeColumnName  | trim | length == 0 -%}
-    SELECT * FROM {{ relation_name }}
+    SELECT * FROM {{ relation_list | join(', ') }}
 
 {%- else -%}
 
@@ -103,7 +104,7 @@ WITH points_h3 AS (
             {{ resolution }}
         )                            AS h3_cell,
         {{ heat_expr }}              AS point_heat
-    FROM {{ relation_name }}
+    FROM {{ relation_list | join(', ') }}
 ),
 
 cell_counts AS (

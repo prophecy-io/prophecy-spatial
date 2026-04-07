@@ -154,8 +154,8 @@ class CreatePoint(MacroSpec):
                     Diagnostic("component.properties.addFields", "Please provide a target column name", SeverityLevelEnum.Error))
 
         # Check 3: If schema is updated but not selected fields
-        # Extract all column names from the schema
-        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+        # Extract all column names from the schema (same parsed structure as above)
+        field_names = [field["name"] for field in schema["fields"]]
 
         # Extract longitude column names from addFields
         match_longitude_field = [field.longitudeColumnName for field in component.properties.addFields if field.longitudeColumnName]
@@ -206,27 +206,73 @@ class CreatePoint(MacroSpec):
         for field in props.addFields:
             grouped_fields.append([field.longitudeColumnName,field.latitudeColumnName,field.targetColumnName])
 
-        arguments = [
-            "'" + table_name + "'",
-            str(grouped_fields)
-        ]
+        # Macro: CreatePoint(relation, matchFields) — matchFields is a list of triples
+        match_fields_json = json.dumps(grouped_fields)
+        arguments = ["'" + table_name + "'", match_fields_json]
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
+        # Macro: CreatePoint(relation, matchFields)
+        raw_rel = parametersMap.get("relation") or parametersMap.get("relation_name")
+        if raw_rel is None or str(raw_rel).strip() == "":
+            relation_name = []
+        else:
+            s = str(raw_rel).strip()
+            try:
+                relation_name = json.loads(s.replace("'", '"'))
+                if not isinstance(relation_name, list):
+                    relation_name = [str(relation_name)]
+            except json.JSONDecodeError:
+                relation_name = [p for p in s.split(",") if p.strip()] or [s]
+
+        raw_mf = parametersMap.get("matchFields") or parametersMap.get("addFields") or "[]"
+        parsed_mf = json.loads(str(raw_mf).replace("'", '"'))
+        if not isinstance(parsed_mf, list):
+            parsed_mf = []
+
+        add_fields = []
+        for row in parsed_mf:
+            if isinstance(row, list) and len(row) >= 3:
+                add_fields.append(
+                    CreatePoint.AddMatchField(
+                        longitudeColumnName=row[0] or "",
+                        latitudeColumnName=row[1] or "",
+                        targetColumnName=row[2] or "",
+                    )
+                )
+            elif isinstance(row, dict):
+                add_fields.append(
+                    CreatePoint.AddMatchField(
+                        longitudeColumnName=row.get("longitudeColumnName") or "",
+                        latitudeColumnName=row.get("latitudeColumnName") or "",
+                        targetColumnName=row.get("targetColumnName") or "",
+                    )
+                )
+
         return CreatePoint.CreatePointProperties(
-            relation_name=parametersMap.get('relation_name')
+            relation_name=relation_name,
+            addFields=add_fields,
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
         # convert component's state to default macro property representation
+        table_name = ",".join(str(rel) for rel in properties.relation_name)
+        match_fields = [
+            [f.longitudeColumnName, f.latitudeColumnName, f.targetColumnName]
+            for f in properties.addFields
+        ]
         return BasicMacroProperties(
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name))
+                MacroParameter("relation", table_name),
+                MacroParameter("matchFields", json.dumps(match_fields)),
             ],
         )
 

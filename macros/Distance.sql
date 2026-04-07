@@ -10,6 +10,8 @@
   Parameters:
     - relation_name (list): One-element list of table/relation identifiers (e.g.
       ['pairs']); default__ uses that name with backticks in FROM.
+    - schema (list): Input schema metadata as objects containing at least `name`.
+      default__ projects these names in the output SELECT.
     - sourceColumnNames (string): Single column name whose values are POINT WKT.
     - destinationColumnNames (string): Same for the destination point column.
     - sourceType / destinationType (string): Both must be 'point' for spatial
@@ -19,9 +21,6 @@
       naming to generic distance column and km-based earth radius).
     - outputCardDirection (bool): Emit cardinal_direction (N/NE/…).
     - outputDirectionDegrees (bool): Emit direction_degrees (0–360 bearing).
-    - allColumnNames (list, default []): Columns to project in the point/point
-      branch (backtick-quoted in SELECT); include every column you need on output
-      alongside distance/direction fields.
 
   Adapter Support:
     - Default (backtick-quoted relation/columns; substring parsing of POINT WKT;
@@ -33,6 +32,7 @@
   Macro Call Examples:
     {{ prophecy_spatial.Distance(
          ['pairs'],
+         [{"name": "id", "dataType": "string"}, {"name": "origin_pt", "dataType": "string"}, {"name": "dest_pt", "dataType": "string"}],
          'origin_pt',
          'dest_pt',
          'point',
@@ -40,14 +40,14 @@
          true,
          'kms',
          false,
-         false,
-         ['id', 'origin_pt', 'dest_pt']
+         false
        ) }}
 
   CTE Usage Example:
     Macro call (example above):
       {{ prophecy_spatial.Distance(
            ['pairs'],
+           [{"name": "id", "dataType": "string"}, {"name": "origin_pt", "dataType": "string"}, {"name": "dest_pt", "dataType": "string"}],
            'origin_pt',
            'dest_pt',
            'point',
@@ -55,8 +55,7 @@
            true,
            'kms',
            false,
-           false,
-           ['id', 'origin_pt', 'dest_pt']
+           false
          ) }}
 
     Resolved query (default__, illustrative fragment — full SQL includes _coords CTE):
@@ -76,6 +75,7 @@
     cardinal letters.
 #}
 {% macro Distance(relation_name,
+    schema,
     sourceColumnNames,
     destinationColumnNames,
     sourceType,
@@ -83,9 +83,9 @@
     outputDistance,
     units,
     outputCardDirection,
-    outputDirectionDegrees,
-    allColumnNames=[]) -%}
+    outputDirectionDegrees) -%}
     {{ return(adapter.dispatch('Distance', 'prophecy_spatial')(relation_name,
+    schema,
     sourceColumnNames,
     destinationColumnNames,
     sourceType,
@@ -93,13 +93,13 @@
     outputDistance,
     units,
     outputCardDirection,
-    outputDirectionDegrees,
-    allColumnNames)) }}
+    outputDirectionDegrees)) }}
 {% endmacro %}
 
 
 {%- macro default__Distance(
     relation_name,
+    schema,
     sourceColumnNames,
     destinationColumnNames,
     sourceType,
@@ -107,12 +107,12 @@
     outputDistance,
     units,
     outputCardDirection,
-    outputDirectionDegrees,
-    allColumnNames=[]
+    outputDirectionDegrees
 ) -%}
+  {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
   {% set cols_str -%}
-    {%- for col in allColumnNames -%}
-      `{{ col }}`{{ "," if not loop.last }}
+    {%- for field in schema -%}
+      `{{ field["name"] }}`{{ "," if not loop.last }}
     {%- endfor -%}
   {%- endset %}
 
@@ -162,7 +162,7 @@
             substring_index(substring_index(`{{ destinationColumnNames }}`, '(', -1), ')', 1),
           ' ', -1)
         AS DOUBLE) AS lat2
-      FROM `{{ relation_name }}`
+      FROM {{ relation_list | join(', ') }}
     )
 
     {%- if needs_bearing %}
@@ -227,7 +227,7 @@
 
   {%- else -%}
 
-    SELECT * FROM `{{ relation_name }}`
+    SELECT * FROM {{ relation_list | join(', ') }}
 
   {%- endif -%}
 

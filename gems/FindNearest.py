@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import dataclasses
 import json
 
@@ -26,7 +26,6 @@ class FindNearest(MacroSpec):
         relation_name: List[str] = field(default_factory=list)
         source_schema: str = ''
         target_schema: str = ''
-        columnNames: List[str] = field(default_factory=list)
         sourceColumnName: str = ""
         destinationColumnName: str = ""
         sourceType: str = "point"
@@ -213,14 +212,12 @@ class FindNearest(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: FindNearestProperties) -> str:
-        # Get existing column names
-        allSourceColumnNames = [field["name"] for field in json.loads(props.source_schema)]
-        allTargetColumnNames = [field["name"] for field in json.loads(props.target_schema)]
-
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
             str(props.relation_name),
+            props.source_schema,
+            props.target_schema,
             "'" + props.sourceColumnName + "'",
             "'" + props.destinationColumnName + "'",
             "'" + str(props.sourceType) + "'",
@@ -228,9 +225,7 @@ class FindNearest(MacroSpec):
             str(props.nearestPoints),
             str(props.maxDistance),
             "'" + str(props.units) + "'",
-            str(props.ignoreZeroDistance).lower(),
-            str(allSourceColumnNames),
-            str(allTargetColumnNames)
+            str(props.ignoreZeroDistance).lower()
         ]
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'

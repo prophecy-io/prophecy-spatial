@@ -7,11 +7,11 @@
   search radii, or thickened boundaries around lines and polygons.
 
   Parameters:
-    - table_name (list): One-element list naming the relation used in FROM (same
+    - relation_name (list): One-element list naming the relation used in FROM (same
       role as relation_name elsewhere), e.g. ['roads']; default__ uses that name
       passed through to SQL (add quoting/qualifiers as required by your warehouse).
     - schema (string): Logged in default__ only; does not affect generated SQL.
-    - geom_column_name (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
+    - geometryColumnName (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
     - distance (numeric): Buffer distance in kilometers when unit is
       "kilometers", otherwise treated as miles and converted to meters
       (×1609.34).
@@ -49,15 +49,15 @@
       FROM
         roads
 #}
-{% macro Buffer(table_name, schema, geom_column_name, distance, unit) -%}
-    {{ return(adapter.dispatch('Buffer', 'prophecy_spatial')(table_name, schema, geom_column_name, distance, unit)) }}
+{% macro Buffer(relation_name, schema, geometryColumnName, distance, unit) -%}
+    {{ return(adapter.dispatch('Buffer', 'prophecy_spatial')(relation_name, schema, geometryColumnName, distance, unit)) }}
 {% endmacro %}
 
 
 {%- macro default__Buffer(
-        table_name, schema, geom_column_name, distance, unit
+        relation_name, schema, geometryColumnName, distance, unit
 ) -%}
-  {% set relation_list = table_name if table_name is iterable and table_name is not string else [table_name] %}
+  {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
 
   {%- if unit == 'kilometers' -%}
@@ -67,12 +67,12 @@
   {%- endif -%}
 
   SELECT
-    {{geom_column_name}} as input,
+    {{geometryColumnName}} as input,
     ST_AsText(
       ST_Transform(
         ST_Buffer(
           ST_Transform(
-            ST_GeomFromText({{geom_column_name}}, 4326),
+            ST_GeomFromText({{geometryColumnName}}, 4326),
             3857
           ),
           {{distance_meters}}

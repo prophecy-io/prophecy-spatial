@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import dataclasses
 import json
 
@@ -24,7 +24,6 @@ class Distance(MacroSpec):
     class DistanceProperties(MacroProperties):
         # properties for the component with default values
         schema: str = ''
-        columnNames: List[str] = field(default_factory=list)
         sourceColumnNames: str = ""
         destinationColumnNames: str = ""
         sourceType: str = "point"
@@ -53,6 +52,57 @@ class Distance(MacroSpec):
                 relation_name.append(upstream_node.label)
 
         return relation_name
+
+    @staticmethod
+    def _sql_string_literal(val) -> str:
+        if val is None or val == "":
+            return "''"
+        return "'" + str(val).replace("'", "''") + "'"
+
+    @staticmethod
+    def _strip_sql_string_literal(raw) -> str:
+        if raw is None or raw == "":
+            return ""
+        s = str(raw).strip()
+        if len(s) >= 2 and s[0] == "'" and s[-1] == "'":
+            return s[1:-1].replace("''", "'")
+        return s
+
+    @classmethod
+    def _parse_relation_name_list(cls, raw_rel) -> List[str]:
+        if raw_rel is None or str(raw_rel).strip() == "":
+            return []
+
+        s = str(raw_rel).strip()
+        try:
+            parsed = json.loads(s.replace("'", '"'))
+            if isinstance(parsed, list):
+                return [str(x) for x in parsed]
+            return [str(parsed)]
+        except json.JSONDecodeError:
+            return [part.strip() for part in s.split(",") if part.strip()] or [s]
+
+    @classmethod
+    def _parse_schema_value(cls, raw_schema, legacy_all_column_names=None) -> str:
+        if raw_schema not in (None, ""):
+            return cls._strip_sql_string_literal(raw_schema)
+
+        if legacy_all_column_names in (None, ""):
+            return "[]"
+
+        s = str(legacy_all_column_names).strip()
+        try:
+            parsed = json.loads(s.replace("'", '"'))
+        except json.JSONDecodeError:
+            parsed = []
+
+        if isinstance(parsed, list):
+            if all(isinstance(field, dict) for field in parsed):
+                return json.dumps(parsed)
+            if all(not isinstance(field, dict) for field in parsed):
+                return json.dumps([{"name": str(col), "dataType": ""} for col in parsed])
+
+        return "[]"
 
     def dialog(self) -> Dialog:
         horizontalDivider = HorizontalDivider()
@@ -200,25 +250,19 @@ class Distance(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: DistanceProperties) -> str:
-        # Get the table name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
-        # Get existing column names
-        allColumnNames = [field["name"] for field in json.loads(props.schema)]
-
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + table_name + "'",
-            "'" + props.sourceColumnNames + "'",
-            "'" + props.destinationColumnNames + "'",
-            "'" + str(props.sourceType) + "'",
-            "'" + str(props.destinationType) + "'",
+            json.dumps(props.relation_name),
+            props.schema if props.schema else "[]",
+            self._sql_string_literal(props.sourceColumnNames),
+            self._sql_string_literal(props.destinationColumnNames),
+            self._sql_string_literal(props.sourceType),
+            self._sql_string_literal(props.destinationType),
             str(props.outputDistance).lower(),
-            "'" + str(props.units) + "'",
+            self._sql_string_literal(props.units),
             str(props.outputCardDirection).lower(),
-            str(props.outputDirectionDegrees).lower(),
-            str(allColumnNames)
+            str(props.outputDirectionDegrees).lower()
         ]
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
@@ -230,14 +274,14 @@ class Distance(MacroSpec):
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return Distance.DistanceProperties(
-            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
-            schema=parametersMap.get('schema').lstrip("'").rstrip("'"),
-            sourceColumnNames=parametersMap.get('sourceColumnNames').lstrip("'").rstrip("'"),
-            destinationColumnNames=parametersMap.get('destinationColumnNames').lstrip("'").rstrip("'"),
-            sourceType=parametersMap.get('sourceType').lstrip("'").rstrip("'"),
-            destinationType=parametersMap.get('destinationType').lstrip("'").rstrip("'"),
+            relation_name=self._parse_relation_name_list(parametersMap.get("relation_name")),
+            schema=self._parse_schema_value(parametersMap.get("schema"), parametersMap.get("allColumnNames")),
+            sourceColumnNames=self._strip_sql_string_literal(parametersMap.get('sourceColumnNames')),
+            destinationColumnNames=self._strip_sql_string_literal(parametersMap.get('destinationColumnNames')),
+            sourceType=self._strip_sql_string_literal(parametersMap.get('sourceType')),
+            destinationType=self._strip_sql_string_literal(parametersMap.get('destinationType')),
             outputDistance=parametersMap.get("outputDistance").lower() == "true",
-            units=parametersMap.get('units').lstrip("'").rstrip("'"),
+            units=self._strip_sql_string_literal(parametersMap.get('units')),
             outputCardDirection=parametersMap.get("outputCardDirection").lower() == "true",
             outputDirectionDegrees=parametersMap.get("outputDirectionDegrees").lower() == "true",
         )
@@ -249,13 +293,13 @@ class Distance(MacroSpec):
             projectName=self.projectName,
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
-                MacroParameter("schema", str(properties.schema)),
-                MacroParameter("sourceColumnNames", str(properties.sourceColumnNames)),
-                MacroParameter("destinationColumnNames", str(properties.destinationColumnNames)),
-                MacroParameter("sourceType", str(properties.sourceType)),
-                MacroParameter("destinationType", str(properties.destinationType)),
+                MacroParameter("schema", properties.schema if properties.schema else "[]"),
+                MacroParameter("sourceColumnNames", self._sql_string_literal(properties.sourceColumnNames)),
+                MacroParameter("destinationColumnNames", self._sql_string_literal(properties.destinationColumnNames)),
+                MacroParameter("sourceType", self._sql_string_literal(properties.sourceType)),
+                MacroParameter("destinationType", self._sql_string_literal(properties.destinationType)),
                 MacroParameter("outputDistance", str(properties.outputDistance).lower()),
-                MacroParameter("units", str(properties.units)),
+                MacroParameter("units", self._sql_string_literal(properties.units)),
                 MacroParameter("outputCardDirection", str(properties.outputCardDirection).lower()),
                 MacroParameter("outputDirectionDegrees", str(properties.outputDirectionDegrees).lower()),
             ],

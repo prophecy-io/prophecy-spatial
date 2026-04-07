@@ -89,15 +89,17 @@
 
   {% set source_columns = schemas[0] %}
   {% set target_columns = schemas[1] %}
+  {% set quoted_source_column = adapter.quote(source_column) %}
+  {% set quoted_target_column = adapter.quote(target_column) %}
 
   {% set source_select = [] %}
   {% for col in source_columns %}
-    {% do source_select.append('source.' ~ col) %}
+    {% do source_select.append('source.' ~ adapter.quote(col)) %}
   {% endfor %}
 
   {% set target_select = [] %}
   {% for col in target_columns %}
-    {% do target_select.append('target.' ~ col ~ ' AS target_' ~ col) %}
+    {% do target_select.append('target.' ~ adapter.quote(col) ~ ' AS ' ~ adapter.quote('target_' ~ col)) %}
   {% endfor %}
 
   {% set spatial_fn = fn_map.get(match_type) %}
@@ -109,22 +111,22 @@
   WHERE
     {% if spatial_fn %}
       {{ spatial_fn }}(
-        ST_GeomFromText(source.{{ source_column }}),
-        ST_GeomFromText(target.{{ target_column }})
+        ST_GeomFromText(source.{{ quoted_source_column }}),
+        ST_GeomFromText(target.{{ quoted_target_column }})
       )
     {% elif match_type == 'touches_or_intersects' %}
       ST_Touches(
-        ST_GeomFromText(source.{{ source_column }}),
-        ST_GeomFromText(target.{{ target_column }})
+        ST_GeomFromText(source.{{ quoted_source_column }}),
+        ST_GeomFromText(target.{{ quoted_target_column }})
       )
       OR ST_Intersects(
-        ST_GeomFromText(source.{{ source_column }}),
-        ST_GeomFromText(target.{{ target_column }})
+        ST_GeomFromText(source.{{ quoted_source_column }}),
+        ST_GeomFromText(target.{{ quoted_target_column }})
       )
     {% elif match_type == 'envelope' %}
       ST_Intersects(
-        ST_Envelope(ST_GeomFromText(source.{{ source_column }})),
-        ST_Envelope(ST_GeomFromText(target.{{ target_column }}))
+        ST_Envelope(ST_GeomFromText(source.{{ quoted_source_column }})),
+        ST_Envelope(ST_GeomFromText(target.{{ quoted_target_column }}))
       )
     {% else %}
       1=1 -- fallback if no known type

@@ -138,7 +138,7 @@ class Buffer(MacroSpec):
             or parametersMap.get("relation_name")
             or "[]"
         )
-        # schema: macro arg is a SQL string literal (safe_str in apply); strip like Regex / GenerateRows
+        # schema: SQL string literal in apply (safe_str); strip outer quotes like Regex / GenerateRows
         schema_raw = parametersMap.get("schema")
         geom_raw = parametersMap.get("geom_column_name") or parametersMap.get(
             "geometryColumnName"
@@ -155,7 +155,7 @@ class Buffer(MacroSpec):
             else ""
         )
         return Buffer.BufferProperties(
-            relation_name=json.loads(raw_rel.replace("'", '"')),
+            relation_name=json.loads(str(raw_rel).replace("'", '"')),
             schema=schema_val,
             geometryColumnName=(geom_raw or "").lstrip("'").rstrip("'"),
             distance=distance,

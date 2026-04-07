@@ -9,7 +9,3 @@ models/*
 prophecy-sources/*
 !prophecy-sources/unreferencedSources.yml
 .idea/
-seeds/
-packages.yml
-package-lock.yml
-__pycache__/

@@ -7,7 +7,7 @@
   count for lighter maps or downstream spatial joins.
 
   Parameters:
-    - table_name (list): One-element list naming the relation used in FROM (same
+    - relation_name (list): One-element list naming the relation used in FROM (same
       role as relation_name elsewhere), e.g. ['boundaries']; default__ uses that
       name passed through to SQL.
     - schema (string): Logged in default__ only; does not affect generated SQL.
@@ -47,12 +47,13 @@
       FROM
         boundaries
 #}
-{% macro Simplify(table_name, schema, geom_column_name, tolerance, unit) -%}
-    {{ return(adapter.dispatch('Simplify', 'prophecy_spatial')(table_name, schema, geom_column_name, tolerance, unit)) }}
+{% macro Simplify(relation_name, schema, geom_column_name, tolerance, unit) -%}
+    {{ return(adapter.dispatch('Simplify', 'prophecy_spatial')(relation_name, schema, geom_column_name, tolerance, unit)) }}
 {% endmacro %}
 
-{%- macro default__Simplify(table_name, schema, geom_column_name, tolerance, unit) -%}
-  {{ log("table_name=" ~ table_name, info=True) }}
+{%- macro default__Simplify(relation_name, schema, geom_column_name, tolerance, unit) -%}
+  {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
+  {{ log("relation_name=" ~ relation_name, info=True) }}
   {{ log("schema=" ~ schema, info=True) }}
   {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
   {{ log("tolerance=" ~ tolerance, info=True) }}
@@ -79,6 +80,6 @@
       )
     ) as output
   FROM
-    {{table_name}}
+    {{ relation_list | join(', ') }}
 
 {%- endmacro -%}

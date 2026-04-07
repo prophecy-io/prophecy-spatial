@@ -78,12 +78,13 @@
         groupColumnName='',
         sequenceColumnName=''
 ) %}
+    {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
 {# ── 0. quick passthrough check ────────────────────────────────────────── #}
 {% if longitudeColumnName | trim | length == 0
       or latitudeColumnName  | trim | length == 0 %}
     {{ log('PolyBuild: lon/lat column missing → returning raw rows.', info=True) }}
-    SELECT * FROM {{ relation_name }}
+    SELECT * FROM {{ relation_list | join(', ') }}
 {% else %}
     {# ── validate buildMethod ──────────────────────────────────────────────── #}
     {% set method = buildMethod | lower %}
@@ -117,7 +118,7 @@
             {{ lon }} AS lon,
             {{ lat }} AS lat,
             CONCAT(CAST({{ lon }} AS STRING), ' ', CAST({{ lat }} AS STRING)) AS coord
-        FROM {{ relation_name }}
+        FROM {{ relation_list | join(', ') }}
 
     ), ordered AS (
 

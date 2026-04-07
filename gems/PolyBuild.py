@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import dataclasses
 import json
 
@@ -174,11 +174,8 @@ class PolyBuild(MacroSpec):
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
-        # Get the Single Table Name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
         arguments = [
-            "'" + table_name + "'",
+            str(props.relation_name),
             "'" + props.buildMethod + "'",
             "'" + props.longitudeColumnName + "'",
             "'" + props.latitudeColumnName + "'",

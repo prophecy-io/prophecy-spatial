@@ -116,14 +116,11 @@ class Simplify(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: SimplifyProperties) -> str:
-        # Get the table name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
         arguments = [
-            "'" + table_name + "'",
+            str(props.relation_name),
             props.schema,
             "'" + props.geom_column_name + "'",            
             str(props.tolerance),

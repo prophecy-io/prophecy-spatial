@@ -2,7 +2,7 @@ import dataclasses
 import json
 import os
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections import defaultdict
 from prophecy.cb.sql.Component import *
 from prophecy.cb.sql.MacroBuilderBase import *

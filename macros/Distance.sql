@@ -168,7 +168,7 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set cols_str = prophecy_basics.quote_column_list(allColumnNames) -%}
+  {%- set cols_str = prophecy_basics.quote_column_list(allColumnNames | join(', ')) -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
@@ -200,11 +200,29 @@
       SELECT
         {{ cols_str }},
 
-        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 1)) AS lon1,
-        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 2)) AS lat1,
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 1)
+        AS DOUBLE) AS lon1,
 
-        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 1)) AS lon2,
-        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 2)) AS lat2
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 2)
+        AS DOUBLE) AS lat1,
+
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 1)
+        AS DOUBLE) AS lon2,
+
+        CAST(
+          SPLIT_PART(
+            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
+          ' ', 2)
+        AS DOUBLE) AS lat2
 
       FROM {{ relation_name }} base
     )
@@ -258,7 +276,6 @@
       {%- if outputDirectionDegrees %},
       bearing_deg AS {{ degrees_col }}
       {%- endif %}
-
     FROM _with_bearing
     {%- else %}
     SELECT
@@ -271,7 +288,6 @@
         )
       ) AS {{ distance_col }}
     FROM _coords
-
     {%- endif %}
   {%- else -%}
     SELECT * FROM {{ relation_name }}

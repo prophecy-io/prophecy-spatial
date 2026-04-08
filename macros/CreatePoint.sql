@@ -81,12 +81,9 @@
         SELECT
             *,
             {%- for fields in matchFields %}
-                CONCAT(
-                    'POINT(',
-                    {{ prophecy_basics.quote_identifier(fields[0]) }},
-                    ' ',
-                    {{ prophecy_basics.quote_identifier(fields[1]) }},
-                    ')'
+                ST_POINT(
+                    TRY_TO_DOUBLE({{ prophecy_basics.quote_identifier(fields[0]) }}),
+                    TRY_TO_DOUBLE({{ prophecy_basics.quote_identifier(fields[1]) }})
                 ) AS {{ prophecy_basics.quote_identifier(fields[2]) }}
                 {%- if not loop.last %},{% endif %}
             {%- endfor %}

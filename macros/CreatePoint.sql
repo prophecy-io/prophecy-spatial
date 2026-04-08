@@ -38,30 +38,24 @@
         {%- endif %}
     {%- endfor %}
 
+    {%- set rel = prophecy_basics.get_relation(relation) -%}
     {%- if matchFields | length == 0 or invalid_fields | length > 0 %}
-
         SELECT *
-        FROM {{ prophecy_basics.quote_identifier(relation) }}
-
+        FROM {{ rel }}
     {%- else %}
 
         SELECT
             base.*,
-
             {%- for fields in matchFields %}
-
-                ST_POINT(
-                    TRY_TO_DOUBLE(base.{{ prophecy_basics.quote_identifier(fields[0]) }}),
-                    TRY_TO_DOUBLE(base.{{ prophecy_basics.quote_identifier(fields[1]) }})
-                )
-                AS {{ prophecy_basics.quote_identifier(fields[2]) }}
-
+                CONCAT(
+                    'POINT(',
+                    base.{{ prophecy_basics.quote_identifier(fields[0]) }},
+                    ' ',
+                    base.{{ prophecy_basics.quote_identifier(fields[1]) }},
+                    ')'
+                ) AS {{ prophecy_basics.quote_identifier(fields[2]) }}
                 {%- if not loop.last %},{% endif %}
-
             {%- endfor %}
-
-        FROM {{ prophecy_basics.quote_identifier(relation) }} AS base
-
+        FROM {{ rel }} AS base
     {%- endif %}
-
 {%- endmacro %}

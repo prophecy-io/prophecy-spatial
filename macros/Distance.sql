@@ -168,14 +168,13 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set cols_str = prophecy_basics.quote_column_list(allColumnNames | join(', ')) -%}
+  {%- set cols_str = prophecy_basics.quote_column_list(allColumnNames) -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
         and (outputDistance or outputCardDirection or outputDirectionDegrees)
   -%}
 
-    {# ---- Units handling ---- #}
     {%- if units == 'kms' -%}
       {%- set distance_col = 'distanceKilometers' -%}
       {%- set radius = 6371 -%}
@@ -201,32 +200,13 @@
       SELECT
         {{ cols_str }},
 
-        -- Extract lon/lat from WKT POINT(lon lat)
-        CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
-          ' ', 1)
-        AS DOUBLE) AS lon1,
+        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 1)) AS lon1,
+        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 2)) AS lat1,
 
-        CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
-          ' ', 2)
-        AS DOUBLE) AS lat1,
+        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 1)) AS lon2,
+        TRY_TO_DOUBLE(SPLIT_PART(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''), ' ', 2)) AS lat2
 
-        CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
-          ' ', 1)
-        AS DOUBLE) AS lon2,
-
-        CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
-          ' ', 2)
-        AS DOUBLE) AS lat2
-
-      FROM {{ prophecy_basics.quote_identifier(relation_name) }}
+      FROM {{ relation_name }} base
     )
 
     {%- if needs_bearing %}
@@ -280,9 +260,7 @@
       {%- endif %}
 
     FROM _with_bearing
-
     {%- else %}
-
     SELECT
       {{ cols_str }},
       {{ radius }} * 2 * ASIN(
@@ -295,11 +273,7 @@
     FROM _coords
 
     {%- endif %}
-
   {%- else -%}
-
-    SELECT * FROM {{ prophecy_basics.quote_identifier(relation_name) }}
-
+    SELECT * FROM {{ relation_name }}
   {%- endif -%}
-
 {%- endmacro %}

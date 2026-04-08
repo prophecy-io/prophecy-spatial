@@ -24,3 +24,39 @@
         from `{{ relation }}`
     {%- endif %}
 {%- endmacro -%}
+
+{%- macro snowflake__CreatePoint(
+        relation, matchFields
+) -%}
+
+    {%- set invalid_fields = [] -%}
+    {%- for fields in matchFields %}
+        {%- if fields[0] | length == 0 or fields[1] | length == 0 or fields[2] | length == 0 %}
+            {%- do invalid_fields.append(true) %}
+        {%- endif %}
+    {%- endfor %}
+
+    {%- if matchFields | length == 0 or invalid_fields | length > 0 %}
+
+        SELECT *
+        FROM {{ prophecy_basics.quote_identifier(relation) }}
+
+    {%- else %}
+
+        SELECT
+            *,
+            {%- for fields in matchFields %}
+                CONCAT(
+                    'POINT(',
+                    {{ prophecy_basics.quote_identifier(fields[0]) }},
+                    ' ',
+                    {{ prophecy_basics.quote_identifier(fields[1]) }},
+                    ')'
+                ) AS {{ prophecy_basics.quote_identifier(fields[2]) }}
+                {%- if not loop.last %},{% endif %}
+            {%- endfor %}
+        FROM {{ prophecy_basics.quote_identifier(relation) }}
+
+    {%- endif %}
+
+{%- endmacro %}

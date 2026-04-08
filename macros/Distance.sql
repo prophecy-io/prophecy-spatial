@@ -226,7 +226,7 @@
           ' ', 2)
         AS DOUBLE) AS lat2
 
-      FROM `{{ relation_name }}`
+      FROM {{ prophecy_basics.quote_identifier(relation_name) }}
     )
 
     {%- if needs_bearing %}

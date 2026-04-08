@@ -202,25 +202,25 @@
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 1)
         AS DOUBLE) AS lon1,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 2)
         AS DOUBLE) AS lat1,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 1)
         AS DOUBLE) AS lon2,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 2)
         AS DOUBLE) AS lat2
 

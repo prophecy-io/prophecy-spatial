@@ -110,7 +110,7 @@
 
             {# sequence key #}
             {% if has_seq -%}
-                CONCAT({{ seq }}, {{ lon }}, {{ lat }}) AS sequencing_column_name,
+                {{ seq }} AS sequencing_column_name,
             {%- else -%}
                 CONCAT({{ lon }}, {{ lat }})            AS sequencing_column_name,
             {%- endif %}

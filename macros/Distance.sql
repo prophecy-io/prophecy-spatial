@@ -176,6 +176,9 @@
     {%- endif -%}
   {%- endset -%}
 
+  {%- set src_col = sourceColumnNames if sourceColumnNames is string else sourceColumnNames[0] -%}
+  {%- set dst_col = destinationColumnNames if destinationColumnNames is string else destinationColumnNames[0] -%}
+
   {%- if sourceType == 'point'
         and destinationType == 'point'
         and (outputDistance or outputCardDirection or outputDirectionDegrees)
@@ -208,25 +211,25 @@
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ sourceColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 1)
         AS DOUBLE) AS lon1,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ sourceColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 2)
         AS DOUBLE) AS lat1,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ destinationColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 1)
         AS DOUBLE) AS lon2,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ destinationColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 2)
         AS DOUBLE) AS lat2
 
@@ -277,7 +280,9 @@
       {%- if outputDirectionDegrees %},
       bearing_deg AS {{ degrees_col }}{%- endif %}
     FROM _with_bearing
+
     {%- else %}
+
     SELECT
       {{ cols_str }},
       {{ radius }} * 2 * ASIN(
@@ -288,8 +293,13 @@
         )
       ) AS {{ distance_col }}
     FROM _coords
+
     {%- endif %}
+
   {%- else -%}
+
     SELECT * FROM {{ relation_name }}
+
   {%- endif -%}
+
 {%- endmacro %}

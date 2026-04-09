@@ -171,7 +171,7 @@
   {%- set cols_str -%}
     {%- if allColumnNames is iterable and allColumnNames is not string -%}
       {%- for col in allColumnNames -%}
-        {{ prophecy_basics.quote_identifier(col) }}{{ "," if not loop.last }}
+        {{ col }}{{ "," if not loop.last }}
       {%- endfor -%}
     {%- endif -%}
   {%- endset -%}
@@ -208,25 +208,25 @@
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ sourceColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 1)
         AS DOUBLE) AS lon1,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(sourceColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ sourceColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 2)
         AS DOUBLE) AS lat1,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ destinationColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 1)
         AS DOUBLE) AS lon2,
 
         CAST(
           SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ prophecy_basics.quote_identifier(destinationColumnNames) }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
+            REPLACE(REPLACE(REPLACE({{ destinationColumnNames }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
           ' ', 2)
         AS DOUBLE) AS lat2
 

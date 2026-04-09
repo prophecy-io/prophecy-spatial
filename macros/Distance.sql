@@ -168,12 +168,23 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set cols = allColumnNames[0] if allColumnNames and allColumnNames[0] is iterable and allColumnNames[0] is not string else allColumnNames -%}
+  {%- set cols = [] -%}
+  {%- if allColumnNames is iterable and allColumnNames is not string -%}
+    {%- if allColumnNames|length > 0 and allColumnNames[0] is iterable and allColumnNames[0] is not string -%}
+      {%- set cols = allColumnNames[0] -%}
+    {%- else -%}
+      {%- set cols = allColumnNames -%}
+    {%- endif -%}
+  {%- endif -%}
 
   {%- set cols_str -%}
-    {%- for col in cols -%}
-      "{{ col }}"{{ "," if not loop.last }}
-    {%- endfor -%}
+    {%- if cols|length > 0 -%}
+      {%- for col in cols -%}
+        "{{ col }}"{{ "," if not loop.last }}
+      {%- endfor -%}
+    {%- else -%}
+      *
+    {%- endif -%}
   {%- endset -%}
 
   {%- set src_col = sourceColumnNames if sourceColumnNames is string else sourceColumnNames[0] -%}

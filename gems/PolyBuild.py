@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import dataclasses
 import json
 
@@ -133,8 +133,8 @@ class PolyBuild(MacroSpec):
                 Diagnostic("component.properties.latitudeColumnName", "Please select the latitude column",
                            SeverityLevelEnum.Error))
 
-        # Extract all column names from the schema
-        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        field_names = [field["name"] for field in schema["fields"]]
         if component.properties.longitudeColumnName !='' and component.properties.longitudeColumnName not in field_names:
             diagnostics.append(
                 Diagnostic("component.properties.longitudeColumnName", f"Selected longitude column {component.properties.longitudeColumnName} is not present in input schema.", SeverityLevelEnum.Error)
@@ -174,11 +174,8 @@ class PolyBuild(MacroSpec):
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
-        # Get the Single Table Name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
         arguments = [
-            "'" + table_name + "'",
+            str(props.relation_name),
             "'" + props.buildMethod + "'",
             "'" + props.longitudeColumnName + "'",
             "'" + props.latitudeColumnName + "'",
@@ -188,17 +185,19 @@ class PolyBuild(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return PolyBuild.PolyBuildProperties(
-            relation_name=parametersMap.get('relation_name'),
-            buildMethod=parametersMap.get('buildMethod'),
-            longitudeColumnName=parametersMap.get('longitudeColumnName'),
-            latitudeColumnName=parametersMap.get('latitudeColumnName'),
-            groupColumnName=parametersMap.get('groupColumnName'),
-            sequenceColumnName=parametersMap.get('sequenceColumnName')
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            buildMethod=parametersMap.get('buildMethod').lstrip("'").rstrip("'"),
+            longitudeColumnName=parametersMap.get('longitudeColumnName').lstrip("'").rstrip("'"),
+            latitudeColumnName=parametersMap.get('latitudeColumnName').lstrip("'").rstrip("'"),
+            groupColumnName=parametersMap.get('groupColumnName').lstrip("'").rstrip("'"),
+            sequenceColumnName=parametersMap.get('sequenceColumnName').lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -207,12 +206,12 @@ class PolyBuild(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
-                MacroParameter("buildMethod", properties.buildMethod),
-                MacroParameter("longitudeColumnName", properties.longitudeColumnName),
-                MacroParameter("latitudeColumnName", properties.latitudeColumnName),
-                MacroParameter("groupColumnName", properties.groupColumnName),
-                MacroParameter("sequenceColumnName", properties.sequenceColumnName)
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
+                MacroParameter("buildMethod", str(properties.buildMethod)),
+                MacroParameter("longitudeColumnName", str(properties.longitudeColumnName)),
+                MacroParameter("latitudeColumnName", str(properties.latitudeColumnName)),
+                MacroParameter("groupColumnName", str(properties.groupColumnName)),
+                MacroParameter("sequenceColumnName", str(properties.sequenceColumnName)),
             ],
         )
 

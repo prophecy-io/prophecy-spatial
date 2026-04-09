@@ -1,3 +1,61 @@
+{#
+  PolyBuild Macro Gem
+  ===================
+
+  Groups rows and builds one WKT polygon or linestring per group by ordering
+  coordinate pairs (optionally by a sequence column). If lon/lat names are
+  missing, returns all rows unchanged.
+
+  Parameters:
+    - relation_name (list): One-element list naming the source relation (e.g.
+      ['tracks']); default__ uses that name in FROM; adapter.quote is not applied
+      to the relation itself (pass identifier as your engine expects).
+    - buildMethod (string): Compared lowercased to 'sequencepolygon' vs
+      'sequencepolyline' to choose POLYGON((...)) vs LINESTRING(...).
+    - longitudeColumnName / latitudeColumnName (string): Required for build;
+      adapter.quote applied; empty/whitespace → SELECT * passthrough.
+    - groupColumnName (string, default ''): If non-empty, groups by this column;
+      else a constant grouping key of 1.
+    - sequenceColumnName (string, default ''): If non-empty, prepended into the
+      sort key so vertices order within each group.
+
+  Adapter Support:
+    - Default (Spark collect_list / sort_array / struct; concat_ws; element_at to close rings)
+
+  Depends on schema parameter:
+    No
+
+  Macro Call Examples:
+    {{ prophecy_spatial.PolyBuild(['tracks'], 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
+
+  CTE Usage Example:
+    Macro call (example above):
+      {{ prophecy_spatial.PolyBuild(['tracks'], 'sequencepolyline', 'lon', 'lat', 'route_id', 'seq') }}
+
+    Resolved query (default__, illustrative WITH shape):
+      WITH coords AS (
+        SELECT
+          <quoted route_id> AS grouping_column_name,
+          CONCAT(<quoted seq>, <quoted lon>, <quoted lat>) AS sequencing_column_name,
+          <quoted lon> AS lon,
+          <quoted lat> AS lat,
+          CONCAT(CAST(<quoted lon> AS STRING), ' ', CAST(<quoted lat> AS STRING)) AS coord
+        FROM tracks
+      ),
+      ordered AS (...),
+      verts AS (...)
+      SELECT
+        grouping_column_name,
+        CASE
+          WHEN 'sequencepolyline' = 'sequencepolygon' THEN
+            CONCAT('POLYGON((', concat_ws(', ', v), ', ', element_at(v, 1), '))')
+          ELSE
+            CONCAT('LINESTRING(', concat_ws(', ', v), ')')
+        END AS geometry_wkt
+      FROM verts
+
+    Quoting follows adapter.quote for lon/lat/group/sequence; compile in-project for exact SQL.
+#}
 {% macro PolyBuild(relation_name,
         buildMethod,
         longitudeColumnName,
@@ -20,12 +78,13 @@
         groupColumnName='',
         sequenceColumnName=''
 ) %}
+    {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
 {# ── 0. quick passthrough check ────────────────────────────────────────── #}
 {% if longitudeColumnName | trim | length == 0
       or latitudeColumnName  | trim | length == 0 %}
     {{ log('PolyBuild: lon/lat column missing → returning raw rows.', info=True) }}
-    SELECT * FROM {{ relation_name }}
+    SELECT * FROM {{ relation_list | join(', ') }}
 {% else %}
     {# ── validate buildMethod ──────────────────────────────────────────────── #}
     {% set method = buildMethod | lower %}
@@ -59,7 +118,7 @@
             {{ lon }} AS lon,
             {{ lat }} AS lat,
             CONCAT(CAST({{ lon }} AS STRING), ' ', CAST({{ lat }} AS STRING)) AS coord
-        FROM {{ relation_name }}
+        FROM {{ relation_list | join(', ') }}
 
     ), ordered AS (
 

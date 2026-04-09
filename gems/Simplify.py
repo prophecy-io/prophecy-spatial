@@ -1,5 +1,6 @@
 import dataclasses
 import json
+from dataclasses import dataclass, field
 
 from prophecy.cb.sql.MacroBuilderBase import *
 from prophecy.cb.ui.uispec import *
@@ -115,14 +116,11 @@ class Simplify(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: SimplifyProperties) -> str:
-        # Get the table name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
         # generate the actual macro call given the component's
         resolved_macro_name = f"{self.projectName}.{self.name}"
 
         arguments = [
-            "'" + table_name + "'",
+            str(props.relation_name),
             props.schema,
             "'" + props.geom_column_name + "'",            
             str(props.tolerance),
@@ -132,16 +130,18 @@ class Simplify(MacroSpec):
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
-
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return Simplify.SimplifyProperties(
-            relation_name=parametersMap.get('relation_name'),
-            schema=parametersMap.get('schema'),
-            geom_column_name=parametersMap.get('geom_column_name'),
-            tolerance=int(parametersMap.get('tolerance')),
-            unit=str(parametersMap.get('unit'))
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
+            schema=parametersMap.get('schema').lstrip("'").rstrip("'"),
+            geom_column_name=parametersMap.get('geom_column_name').lstrip("'").rstrip("'"),
+            tolerance=str(parametersMap.get("tolerance")),
+            unit=parametersMap.get('unit').lstrip("'").rstrip("'"),
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -150,11 +150,11 @@ class Simplify(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
-                MacroParameter("destinationColumnNames", properties.geom_column_name),
+                MacroParameter("geom_column_name", str(properties.geom_column_name)),
                 MacroParameter("tolerance", str(properties.tolerance)),
-                MacroParameter("unit", properties.unit)
+                MacroParameter("unit", str(properties.unit)),
             ],
         )
 

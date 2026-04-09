@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import dataclasses
 import json
 
@@ -24,7 +24,6 @@ class Distance(MacroSpec):
     class DistanceProperties(MacroProperties):
         # properties for the component with default values
         schema: str = ''
-        columnNames: List[str] = field(default_factory=list)
         sourceColumnNames: str = ""
         destinationColumnNames: str = ""
         sourceType: str = "point"
@@ -159,8 +158,8 @@ class Distance(MacroSpec):
                            SeverityLevelEnum.Error)
             )
 
-        # Extract all column names from the schema
-        field_names = [field["name"] for field in component.ports.inputs[0].schema["fields"]]
+        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        field_names = [field["name"] for field in schema["fields"]]
 
         if len(component.properties.sourceColumnNames) > 0:
             if component.properties.sourceColumnNames not in field_names:
@@ -200,44 +199,40 @@ class Distance(MacroSpec):
         return newState.bindProperties(newProperties)
 
     def apply(self, props: DistanceProperties) -> str:
-        # Get the table name
-        table_name: str = ",".join(str(rel) for rel in props.relation_name)
-
-        # Get existing column names
-        allColumnNames = [field["name"] for field in json.loads(props.schema)]
-
         # generate the actual macro call given the component's state
         resolved_macro_name = f"{self.projectName}.{self.name}"
         arguments = [
-            "'" + table_name + "'",
-            "'" + props.sourceColumnNames + "'",
-            "'" + props.destinationColumnNames + "'",
-            "'" + str(props.sourceType) + "'",
-            "'" + str(props.destinationType) + "'",
+            str(props.relation_name),
+            props.schema,
+            f"'{props.sourceColumnNames}'",
+            f"'{props.destinationColumnNames}'",
+            f"'{props.sourceType}'",
+            f"'{props.destinationType}'",
             str(props.outputDistance).lower(),
-            "'" + str(props.units) + "'",
+            f"'{props.units}'",
             str(props.outputCardDirection).lower(),
-            str(props.outputDirectionDegrees).lower(),
-            str(allColumnNames)
+            str(props.outputDirectionDegrees).lower()
         ]
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
+    # -------------------------------------------------------------------------
+    # Property loading/unloading
+    # -------------------------------------------------------------------------
     def loadProperties(self, properties: MacroProperties) -> PropertiesType:
-
         # load the component's state given default macro property representation
         parametersMap = self.convertToParameterMap(properties.parameters)
         return Distance.DistanceProperties(
-            relation_name=parametersMap.get('relation_name'),
+            relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
             schema=parametersMap.get('schema'),
-            sourceColumnNames=parametersMap.get('sourceColumnNames'),
-            destinationColumnNames=parametersMap.get('destinationColumnNames'),
-            sourceType=parametersMap.get('sourceType'),
-            destinationType=parametersMap.get('destinationType'),
-            outputDistance=parametersMap.get('outputDistance').lower() == 'true',
-            units=parametersMap.get('units'),
-            outputCardDirection=parametersMap.get('outputCardDirection').lower() == 'true',
-            outputDirectionDegrees=parametersMap.get('outputDirectionDegrees').lower() == 'true'
+            sourceColumnNames=parametersMap.get('sourceColumnNames').lstrip("'").rstrip("'"),
+            destinationColumnNames=parametersMap.get('destinationColumnNames').lstrip("'").rstrip("'"),
+            sourceType=parametersMap.get('sourceType').lstrip("'").rstrip("'"),
+            destinationType=parametersMap.get('destinationType').lstrip("'").rstrip("'"),
+            outputDistance=parametersMap.get("outputDistance").lower() == "true",
+            units=parametersMap.get('units').lstrip("'").rstrip("'"),
+            outputCardDirection=parametersMap.get("outputCardDirection").lower() == "true",
+            outputDirectionDegrees=parametersMap.get("outputDirectionDegrees").lower() == "true",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -246,7 +241,7 @@ class Distance(MacroSpec):
             macroName=self.name,
             projectName=self.projectName,
             parameters=[
-                MacroParameter("relation_name", str(properties.relation_name)),
+                MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
                 MacroParameter("sourceColumnNames", properties.sourceColumnNames),
                 MacroParameter("destinationColumnNames", properties.destinationColumnNames),
@@ -255,7 +250,7 @@ class Distance(MacroSpec):
                 MacroParameter("outputDistance", str(properties.outputDistance).lower()),
                 MacroParameter("units", properties.units),
                 MacroParameter("outputCardDirection", str(properties.outputCardDirection).lower()),
-                MacroParameter("outputDirectionDegrees", str(properties.outputDirectionDegrees).lower())
+                MacroParameter("outputDirectionDegrees", str(properties.outputDirectionDegrees).lower()),
             ],
         )
 

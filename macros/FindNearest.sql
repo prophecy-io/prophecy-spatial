@@ -1,40 +1,122 @@
-{% macro FindNearest(relation_names,
+{#
+  FindNearest Macro Gem
+  =====================
+
+  Cross-joins two point tables, ranks targets by haversine distance per source
+  row, filters by max distance, and returns the top N neighbors with optional
+  column disambiguation. If types are not point-to-point or column names are
+  missing, returns the first relation unchanged.
+
+  Parameters:
+    - relation_name (list of two strings): [source_table, target_table]; both
+      backtick-quoted in default__.
+    - source_schema / target_schema (list): Input schema metadata objects
+      containing at least `name`; used to project and alias source/target fields.
+    - sourceColumnName / destinationColumnName (string): WKT POINT columns on
+      source and target; must be non-empty for spatial logic.
+    - sourceType / targetType (string): Must both be 'point'.
+    - nearestPoints (int, required): ROW_NUMBER cutoff (rn <= nearestPoints).
+    - maxDistance (numeric, required): Keep pairs with distance <= maxDistance;
+      use 0 to disable the upper bound (WHERE 1=1 on distance).
+    - units (string, default 'kms'): Same distance column naming as Distance
+      ('kms', 'mls', 'mtr', 'feet', else generic).
+    - ignoreZeroDistance (bool, default false): When true, excludes distance = 0.
+
+  Adapter Support:
+    - Default (backticks; UUID row id on source; haversine; ROW_NUMBER ordered by distance)
+
+  Depends on schema parameter:
+    No
+
+  Macro Call Examples:
+    {{ prophecy_spatial.FindNearest(
+         ['src_pts', 'tgt_pts'],
+         [{"name": "id", "dataType": "string"}, {"name": "geom_src", "dataType": "string"}],
+         [{"name": "id", "dataType": "string"}, {"name": "geom_tgt", "dataType": "string"}],
+         'geom_src',
+         'geom_tgt',
+         'point',
+         'point',
+         3,
+         50,
+         'kms',
+         false
+       ) }}
+
+  CTE Usage Example:
+    Macro call (example above):
+      {{ prophecy_spatial.FindNearest(
+           ['src_pts', 'tgt_pts'],
+           [{"name": "id", "dataType": "string"}, {"name": "geom_src", "dataType": "string"}],
+           [{"name": "id", "dataType": "string"}, {"name": "geom_tgt", "dataType": "string"}],
+           'geom_src',
+           'geom_tgt',
+           'point',
+           'point',
+           3,
+           50,
+           'kms',
+           false
+         ) }}
+
+    Resolved query (default__, illustrative — multiple CTEs; ORDER BY tail):
+      ...
+      SELECT
+        ranked.`id` AS source_id, ranked.target_id,
+        rn AS rank_number,
+        distanceKilometers,
+        CASE ... END AS cardinal_direction
+      FROM ranked
+      WHERE rn <= 3
+      ORDER BY lat1, lon1, rn
+
+    Compile in-project for the full WITH _src, _dst, cross_pts, coords, … chain.
+#}
+{% macro FindNearest(relation_name,
+    source_schema,
+    target_schema,
     sourceColumnName,
     destinationColumnName,
     sourceType,
-    destinationType,
+    targetType,
     nearestPoints,
     maxDistance,
     units='kms',
-    ignoreZeroDistance=false,
-    allSourceColumnNames=[],
-    allTargetColumnNames=[]) -%}
-    {{ return(adapter.dispatch('FindNearest', 'prophecy_spatial')(relation_names,
+    ignoreZeroDistance=false) -%}
+    {{ return(adapter.dispatch('FindNearest', 'prophecy_spatial')(relation_name,
+    source_schema,
+    target_schema,
     sourceColumnName,
     destinationColumnName,
     sourceType,
-    destinationType,
+    targetType,
     nearestPoints,
     maxDistance,
     units,
-    ignoreZeroDistance,
-    allSourceColumnNames,
-    allTargetColumnNames)) }}
+    ignoreZeroDistance)) }}
 {% endmacro %}
 
 {% macro default__FindNearest(
-    relation_names,
+    relation_name,
+    source_schema,
+    target_schema,
     sourceColumnName,
     destinationColumnName,
     sourceType,
-    destinationType,
+    targetType,
     nearestPoints,
     maxDistance,
     units='kms',
-    ignoreZeroDistance=false,
-    allSourceColumnNames=[],
-    allTargetColumnNames=[]
+    ignoreZeroDistance=false
 ) -%}
+  {% set source_column_names = [] -%}
+  {% for field in source_schema -%}
+    {% do source_column_names.append(field["name"]) %}
+  {%- endfor %}
+  {% set target_column_names = [] -%}
+  {% for field in target_schema -%}
+    {% do target_column_names.append(field["name"]) %}
+  {%- endfor %}
 
   {#— Validate required arguments —#}
   {%- if nearestPoints is none %}
@@ -65,9 +147,9 @@
   {#— Build SELECT-list for source columns, aliasing conflicts —#}
   {%- set src_select_list = [] -%}
   {%- set src_cols_no_alias = [] -%}
-  {%- for c in allSourceColumnNames %}
+  {%- for c in source_column_names %}
     {%- do src_cols_no_alias.append('`' ~ c ~ '`') -%}
-    {%- if c in allTargetColumnNames %}
+    {%- if c in target_column_names %}
       {%- do src_select_list.append('s.`' ~ c ~ '` AS source_' ~ c) -%}
     {%- else %}
       {%- do src_select_list.append('s.`' ~ c ~ '`') -%}
@@ -79,9 +161,9 @@
   {#— Build SELECT-list for target columns, aliasing conflicts —#}
   {%- set tgt_select_list = [] -%}
   {%- set tgt_cols_no_alias = [] -%}
-  {%- for c in allTargetColumnNames %}
+  {%- for c in target_column_names %}
     {%- do tgt_cols_no_alias.append('`' ~ c ~ '`') -%}
-    {%- if c in allSourceColumnNames %}
+    {%- if c in source_column_names %}
       {%- do tgt_select_list.append('d.`' ~ c ~ '` AS target_' ~ c) -%}
     {%- else %}
       {%- do tgt_select_list.append('d.`' ~ c ~ '`') -%}
@@ -93,7 +175,7 @@
   {#— Proceed only if both are points and column names provided —#}
   {%- if
         sourceType == 'point'
-    and destinationType == 'point'
+    and targetType == 'point'
     and sourceColumnName   != ''
     and destinationColumnName != ''
   -%}
@@ -101,11 +183,11 @@
     WITH
     _src AS (
       SELECT UUID() AS s_rowid, {{ src_cols_no_alias_str }}
-      FROM `{{ relation_names[0] }}`
+      FROM `{{ relation_name[0] }}`
     ),
     _dst AS (
       SELECT {{ tgt_cols_no_alias_str }}
-      FROM `{{ relation_names[1] }}`
+      FROM `{{ relation_name[1] }}`
     ),
 
     cross_pts AS (
@@ -193,8 +275,8 @@
     SELECT
       {#— Final source columns (qualified) —#}
       {%- set final_src_list = [] -%}
-      {%- for c in allSourceColumnNames %}
-        {%- if c in allTargetColumnNames %}
+      {%- for c in source_column_names %}
+        {%- if c in target_column_names %}
           {%- do final_src_list.append('ranked.source_' ~ c ~ ' AS source_' ~ c) -%}
         {%- else %}
           {%- do final_src_list.append('ranked.`' ~ c ~ '`') -%}
@@ -204,8 +286,8 @@
 
       {#— Final target columns (qualified) —#}
       {%- set final_tgt_list = [] -%}
-      {%- for c in allTargetColumnNames %}
-        {%- if c in allSourceColumnNames %}
+      {%- for c in target_column_names %}
+        {%- if c in source_column_names %}
           {%- do final_tgt_list.append('ranked.target_' ~ c ~ ' AS target_' ~ c) -%}
         {%- else %}
           {%- do final_tgt_list.append('ranked.`' ~ c ~ '`') -%}
@@ -233,7 +315,7 @@
   {%- else -%}
 
     -- If not point→point (or missing column names), return source table as-is
-    SELECT * FROM `{{ relation_names[0] }}`
+    SELECT * FROM `{{ relation_name[0] }}`
 
   {%- endif -%}
 

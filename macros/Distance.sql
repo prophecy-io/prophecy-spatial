@@ -179,18 +179,11 @@
     {%- endfor -%}
   {%- endif -%}
 
-  {%- set cols_str -%}
-    {%- if cols|length > 0 -%}
-      {%- for col in cols -%}
-        "{{ col }}"{{ "," if not loop.last }}
-      {%- endfor -%}
-    {%- else -%}
-      *
-    {%- endif -%}
-  {%- endset -%}
+  {%- set cols_str = prophecy_basics.quote_column_list(cols | join(', ')) if cols|length > 0 else "*" -%}
 
-  {%- set src_col = sourceColumnNames -%}
-  {%- set dst_col = destinationColumnNames -%}
+  {%- set src_col = prophecy_basics.quote_identifier(sourceColumnNames) -%}
+  {%- set dst_col = prophecy_basics.quote_identifier(destinationColumnNames) -%}
+  {%- set rel_quoted = prophecy_basics.quote_identifier(rel) -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
@@ -222,18 +215,18 @@
       SELECT
         {{ cols_str }},
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ src_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
         AS DOUBLE) AS lon1,
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ src_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat1,
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ dst_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
         AS DOUBLE) AS lon2,
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ dst_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat2
-      FROM {{ rel }}
+      FROM {{ rel_quoted }}
     )
 
     {%- if needs_bearing %}
@@ -298,7 +291,7 @@
 
   {%- else -%}
 
-    SELECT * FROM {{ rel }}
+    SELECT * FROM {{ rel_quoted }}
 
   {%- endif -%}
 

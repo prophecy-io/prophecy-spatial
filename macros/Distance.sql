@@ -169,8 +169,17 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set rel = relation_name[0] if relation_name is iterable and relation_name is not string else relation_name -%}
+  {# --- FIX relation_name coming as string/list/quoted --- #}
+  {%- set rel_raw = relation_name -%}
+  {%- if rel_raw is string and '[' in rel_raw -%}
+    {%- set rel = rel_raw | replace('[','') | replace(']','') | replace('"','') | replace("'","") -%}
+  {%- elif rel_raw is iterable and rel_raw is not string -%}
+    {%- set rel = rel_raw[0] -%}
+  {%- else -%}
+    {%- set rel = rel_raw | replace('"','') | replace("'","") -%}
+  {%- endif -%}
 
+  {# --- build columns from schema --- #}
   {%- set cols = [] -%}
   {%- if schema is string and schema|length > 0 -%}
     {%- set parsed = fromjson(schema) -%}

@@ -157,6 +157,7 @@
 
 {%- macro snowflake__Distance(
     relation_name,
+    schema,
     sourceColumnNames,
     destinationColumnNames,
     sourceType,
@@ -168,13 +169,14 @@
     allColumnNames=[]
 ) -%}
 
+  {%- set rel = relation_name[0] if relation_name is iterable and relation_name is not string else relation_name -%}
+
   {%- set cols = [] -%}
-  {%- if allColumnNames is iterable and allColumnNames is not string -%}
-    {%- if allColumnNames|length > 0 and allColumnNames[0] is iterable and allColumnNames[0] is not string -%}
-      {%- set cols = allColumnNames[0] -%}
-    {%- else -%}
-      {%- set cols = allColumnNames -%}
-    {%- endif -%}
+  {%- if schema is string and schema|length > 0 -%}
+    {%- set parsed = fromjson(schema) -%}
+    {%- for f in parsed -%}
+      {%- do cols.append(f["name"]) -%}
+    {%- endfor -%}
   {%- endif -%}
 
   {%- set cols_str -%}
@@ -187,8 +189,8 @@
     {%- endif -%}
   {%- endset -%}
 
-  {%- set src_col = sourceColumnNames if sourceColumnNames is string else sourceColumnNames[0] -%}
-  {%- set dst_col = destinationColumnNames if destinationColumnNames is string else destinationColumnNames[0] -%}
+  {%- set src_col = sourceColumnNames -%}
+  {%- set dst_col = destinationColumnNames -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
@@ -220,18 +222,18 @@
       SELECT
         {{ cols_str }},
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ src_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
         AS DOUBLE) AS lon1,
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ src_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat1,
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ dst_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
         AS DOUBLE) AS lon2,
         CAST(
-          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE("{{ dst_col }}", 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat2
-      FROM {{ relation_name }}
+      FROM {{ rel }}
     )
 
     {%- if needs_bearing %}
@@ -296,7 +298,7 @@
 
   {%- else -%}
 
-    SELECT * FROM {{ relation_name }}
+    SELECT * FROM {{ rel }}
 
   {%- endif -%}
 

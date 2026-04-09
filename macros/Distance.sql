@@ -179,11 +179,18 @@
     {%- endfor -%}
   {%- endif -%}
 
-  {%- set cols_str = prophecy_basics.quote_column_list(cols | join(', ')) if cols|length > 0 else "*" -%}
+  {%- set cols_str -%}
+    {%- if cols|length > 0 -%}
+      {%- for col in cols -%}
+        {{ col }}{{ "," if not loop.last }}
+      {%- endfor -%}
+    {%- else -%}
+      *
+    {%- endif -%}
+  {%- endset -%}
 
-  {%- set src_col = prophecy_basics.quote_identifier(sourceColumnNames) -%}
-  {%- set dst_col = prophecy_basics.quote_identifier(destinationColumnNames) -%}
-  {%- set rel_quoted = prophecy_basics.quote_identifier(rel) -%}
+  {%- set src_col = sourceColumnNames -%}
+  {%- set dst_col = destinationColumnNames -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
@@ -226,7 +233,7 @@
         CAST(
           SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat2
-      FROM {{ rel_quoted }}
+      FROM {{ rel }}
     )
 
     {%- if needs_bearing %}
@@ -291,7 +298,7 @@
 
   {%- else -%}
 
-    SELECT * FROM {{ rel_quoted }}
+    SELECT * FROM {{ rel }}
 
   {%- endif -%}
 

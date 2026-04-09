@@ -168,13 +168,7 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set cols_str -%}
-    {%- if allColumnNames is iterable and allColumnNames is not string -%}
-      {%- for col in allColumnNames -%}
-        {{ col }}{{ "," if not loop.last }}
-      {%- endfor -%}
-    {%- endif -%}
-  {%- endset -%}
+  {%- set cols_str = "*" -%}
 
   {%- set src_col = sourceColumnNames if sourceColumnNames is string else sourceColumnNames[0] -%}
   {%- set dst_col = destinationColumnNames if destinationColumnNames is string else destinationColumnNames[0] -%}

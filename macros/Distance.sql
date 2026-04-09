@@ -168,7 +168,13 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set cols_str = "*" -%}
+  {%- set cols = allColumnNames[0] if allColumnNames and allColumnNames[0] is iterable and allColumnNames[0] is not string else allColumnNames -%}
+
+  {%- set cols_str -%}
+    {%- for col in cols -%}
+      "{{ col }}"{{ "," if not loop.last }}
+    {%- endfor -%}
+  {%- endset -%}
 
   {%- set src_col = sourceColumnNames if sourceColumnNames is string else sourceColumnNames[0] -%}
   {%- set dst_col = destinationColumnNames if destinationColumnNames is string else destinationColumnNames[0] -%}
@@ -202,32 +208,19 @@
     WITH _coords AS (
       SELECT
         {{ cols_str }},
-
         CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
-          ' ', 1)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
         AS DOUBLE) AS lon1,
-
         CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
-          ' ', 2)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat1,
-
         CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
-          ' ', 1)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
         AS DOUBLE) AS lon2,
-
         CAST(
-          SPLIT_PART(
-            REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''),
-          ' ', 2)
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
         AS DOUBLE) AS lat2
-
-      FROM {{ relation_name }} base
+      FROM {{ relation_name }}
     )
 
     {%- if needs_bearing %}

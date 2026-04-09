@@ -168,7 +168,13 @@
     allColumnNames=[]
 ) -%}
 
-  {%- set cols_str = prophecy_basics.quote_column_list(allColumnNames | join(', ')) -%}
+  {%- set cols_str -%}
+    {%- if allColumnNames is iterable and allColumnNames is not string -%}
+      {%- for col in allColumnNames -%}
+        {{ prophecy_basics.quote_identifier(col) }}{{ "," if not loop.last }}
+      {%- endfor -%}
+    {%- endif -%}
+  {%- endset -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
@@ -249,7 +255,6 @@
 
     SELECT
       {{ cols_str }}
-
       {%- if outputDistance %},
       {{ radius }} * 2 * ASIN(
         SQRT(
@@ -257,9 +262,7 @@
           + COS(RADIANS(lat1)) * COS(RADIANS(lat2))
           * POWER(SIN(RADIANS((lon2 - lon1) / 2)), 2)
         )
-      ) AS {{ distance_col }}
-      {%- endif %}
-
+      ) AS {{ distance_col }}{%- endif %}
       {%- if outputCardDirection %},
       CASE
         WHEN bearing_deg < 22.5 OR bearing_deg >= 337.5 THEN 'N'
@@ -270,12 +273,9 @@
         WHEN bearing_deg < 247.5 THEN 'SW'
         WHEN bearing_deg < 292.5 THEN 'W'
         ELSE 'NW'
-      END AS {{ direction_col }}
-      {%- endif %}
-
+      END AS {{ direction_col }}{%- endif %}
       {%- if outputDirectionDegrees %},
-      bearing_deg AS {{ degrees_col }}
-      {%- endif %}
+      bearing_deg AS {{ degrees_col }}{%- endif %}
     FROM _with_bearing
     {%- else %}
     SELECT

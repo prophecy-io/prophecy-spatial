@@ -1,6 +1,6 @@
 name: prophecy_spatial
 description: ''
-version: 1.0.0.dev3
+version: 1.0.0
 author: abhinav@prophecy.io
 language: sql
 buildSystem: ''

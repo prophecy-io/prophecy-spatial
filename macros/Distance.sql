@@ -247,7 +247,6 @@
     allColumnNames=[]
 ) -%}
 
-  {# --- FIX relation_name coming as string/list/quoted --- #}
   {%- set rel_raw = relation_name -%}
   {%- if rel_raw is string and '[' in rel_raw -%}
     {%- set rel = rel_raw | replace('[','') | replace(']','') | replace('"','') | replace("'","") -%}
@@ -257,7 +256,6 @@
     {%- set rel = rel_raw | replace('"','') | replace("'","") -%}
   {%- endif -%}
 
-  {# --- build columns from schema --- #}
   {%- set cols = [] -%}
   {%- if schema is string and schema|length > 0 -%}
     {%- set parsed = fromjson(schema) -%}

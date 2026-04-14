@@ -20,7 +20,6 @@
     allColumnNames)) }}
 {% endmacro %}
 
-
 {%- macro default__Distance(
     relation_name,
     sourceColumnNames,
@@ -158,6 +157,7 @@
 
 {%- macro snowflake__Distance(
     relation_name,
+    schema,
     sourceColumnNames,
     destinationColumnNames,
     sourceType,
@@ -169,18 +169,43 @@
     allColumnNames=[]
 ) -%}
 
-  {% set cols_str -%}
-    {%- for col in allColumnNames -%}
-      "{{ col }}"{{ "," if not loop.last }}
+  {# --- FIX relation_name coming as string/list/quoted --- #}
+  {%- set rel_raw = relation_name -%}
+  {%- if rel_raw is string and '[' in rel_raw -%}
+    {%- set rel = rel_raw | replace('[','') | replace(']','') | replace('"','') | replace("'","") -%}
+  {%- elif rel_raw is iterable and rel_raw is not string -%}
+    {%- set rel = rel_raw[0] -%}
+  {%- else -%}
+    {%- set rel = rel_raw | replace('"','') | replace("'","") -%}
+  {%- endif -%}
+
+  {# --- build columns from schema --- #}
+  {%- set cols = [] -%}
+  {%- if schema is string and schema|length > 0 -%}
+    {%- set parsed = fromjson(schema) -%}
+    {%- for f in parsed -%}
+      {%- do cols.append(f["name"]) -%}
     {%- endfor -%}
-  {%- endset %}
+  {%- endif -%}
+
+  {%- set cols_str -%}
+    {%- if cols|length > 0 -%}
+      {%- for col in cols -%}
+        {{ col }}{{ "," if not loop.last }}
+      {%- endfor -%}
+    {%- else -%}
+      *
+    {%- endif -%}
+  {%- endset -%}
+
+  {%- set src_col = sourceColumnNames -%}
+  {%- set dst_col = destinationColumnNames -%}
 
   {%- if sourceType == 'point'
         and destinationType == 'point'
         and (outputDistance or outputCardDirection or outputDirectionDegrees)
   -%}
 
-    {# ---- Units handling ---- #}
     {%- if units == 'kms' -%}
       {%- set distance_col = 'distanceKilometers' -%}
       {%- set radius = 6371 -%}
@@ -205,15 +230,19 @@
     WITH _coords AS (
       SELECT
         {{ cols_str }},
-
-        -- Extract lon/lat from "POINT(lon lat)"
-        CAST(SPLIT_PART(SPLIT_PART({{ sourceColumnNames }}, '(', 2), ' ', 1) AS DOUBLE) AS lon1,
-        CAST(SPLIT_PART(SPLIT_PART({{ sourceColumnNames }}, ' ', 2), ')', 1) AS DOUBLE) AS lat1,
-
-        CAST(SPLIT_PART(SPLIT_PART({{ destinationColumnNames }}, '(', 2), ' ', 1) AS DOUBLE) AS lon2,
-        CAST(SPLIT_PART(SPLIT_PART({{ destinationColumnNames }}, ' ', 2), ')', 1) AS DOUBLE) AS lat2
-
-      FROM {{ relation_name }}
+        CAST(
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+        AS DOUBLE) AS lon1,
+        CAST(
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+        AS DOUBLE) AS lat1,
+        CAST(
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+        AS DOUBLE) AS lon2,
+        CAST(
+          SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+        AS DOUBLE) AS lat2
+      FROM {{ rel }}
     )
 
     {%- if needs_bearing %}
@@ -238,7 +267,6 @@
 
     SELECT
       {{ cols_str }}
-
       {%- if outputDistance %},
       {{ radius }} * 2 * ASIN(
         SQRT(
@@ -246,9 +274,7 @@
           + COS(RADIANS(lat1)) * COS(RADIANS(lat2))
           * POWER(SIN(RADIANS((lon2 - lon1) / 2)), 2)
         )
-      ) AS {{ distance_col }}
-      {%- endif %}
-
+      ) AS {{ distance_col }}{%- endif %}
       {%- if outputCardDirection %},
       CASE
         WHEN bearing_deg < 22.5 OR bearing_deg >= 337.5 THEN 'N'
@@ -259,13 +285,9 @@
         WHEN bearing_deg < 247.5 THEN 'SW'
         WHEN bearing_deg < 292.5 THEN 'W'
         ELSE 'NW'
-      END AS {{ direction_col }}
-      {%- endif %}
-
+      END AS {{ direction_col }}{%- endif %}
       {%- if outputDirectionDegrees %},
-      bearing_deg AS {{ degrees_col }}
-      {%- endif %}
-
+      bearing_deg AS {{ degrees_col }}{%- endif %}
     FROM _with_bearing
 
     {%- else %}
@@ -285,7 +307,7 @@
 
   {%- else -%}
 
-    SELECT * FROM {{ relation_name }}
+    SELECT * FROM {{ rel }}
 
   {%- endif -%}
 

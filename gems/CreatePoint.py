@@ -133,11 +133,11 @@ class CreatePoint(MacroSpec):
 
         # Step 2: Iterate through fields and check if the longitude column is numeric
         for field in component.properties.addFields:
-            if field.longitudeColumnName and type_lookup.get(field.longitudeColumnName, "").lower() not in numeric_types:
+            if field.longitudeColumnName and type_lookup.get(field.longitudeColumnName, "").lower().split("(")[0].strip() not in numeric_types:
                 diagnostics.append(
                     Diagnostic("component.properties.addFields", "Please give a longitude field with numeric data type", SeverityLevelEnum.Error))
 
-            if field.latitudeColumnName and type_lookup.get(field.latitudeColumnName, "").lower() not in numeric_types:
+            if field.latitudeColumnName and type_lookup.get(field.latitudeColumnName, "").lower().split("(")[0].strip() not in numeric_types:
                 diagnostics.append(
                     Diagnostic("component.properties.addFields", "Please give a latitude field with numeric data type", SeverityLevelEnum.Error))
 

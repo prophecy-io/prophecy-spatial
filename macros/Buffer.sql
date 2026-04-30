@@ -118,7 +118,7 @@ SELECT
   ST_ASWKT(
     ST_BUFFER(
       TO_GEOGRAPHY({{ geom_col }}),
-      {{ distance_meters }}
+      ({{ distance_meters }})::FLOAT
     )
   ) AS output
 FROM {{ relation_list | join(', ') }}

@@ -406,20 +406,20 @@ ranked AS (
 SELECT
 {% for c in src_names %}
   {% if c in tgt_names %}
-    {{ 'source_' ~ c }} ,
+    ranked.{{ prophecy_basics.quote_identifier(c) }} AS source_{{ c }},
   {% else %}
-    {{ c }} ,
+    ranked.{{ prophecy_basics.quote_identifier(c) }},
   {% endif %}
 {% endfor %}
 {% for c in tgt_names %}
   {% if c in src_names %}
-    {{ 'target_' ~ c }} ,
+    ranked.{{ prophecy_basics.quote_identifier(c) }} AS target_{{ c }},
   {% else %}
-    {{ c }} ,
+    ranked.{{ prophecy_basics.quote_identifier(c) }},
   {% endif %}
 {% endfor %}
-rn AS rank_number,
-{{ distance_col }}
+ranked.rn AS rank_number,
+ranked.{{ distance_col }}
 FROM ranked
 WHERE rn <= {{ nearestPoints }}
 

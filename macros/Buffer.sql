@@ -114,19 +114,13 @@
 {% set geom_col = prophecy_basics.quote_identifier(geometryColumnName) %}
 
 SELECT
-  {{ geom_col }} as input,
+  {{ geom_col }} AS input,
   ST_ASWKT(
-    ST_TRANSFORM(
-      ST_BUFFER(
-        ST_TRANSFORM(
-          TO_GEOGRAPHY({{ geom_col }}),
-          3857
-        ),
-        {{ distance_meters }}
-      ),
-      4326
+    ST_BUFFER(
+      TO_GEOGRAPHY({{ geom_col }}),
+      {{ distance_meters }}
     )
-  ) as output
+  ) AS output
 FROM {{ relation_list | join(', ') }}
 
 {%- endmacro %}

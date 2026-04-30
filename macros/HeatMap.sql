@@ -192,7 +192,10 @@ SELECT * FROM {{ relation_list | join(', ') }}
 
 WITH points_h3 AS (
     SELECT
-        H3_POINT_TO_CELL({{ lon_col }}, {{ lat_col }}, {{ resolution }}) AS h3_cell,
+        H3_POINT_TO_CELL(
+            TO_GEOGRAPHY(ST_MAKEPOINT({{ lon_col }}, {{ lat_col }})),
+            {{ resolution }}
+        ) AS h3_cell,
         {{ heat_expr }} AS point_heat
     FROM {{ relation_list | join(', ') }}
 ),

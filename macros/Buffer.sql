@@ -84,3 +84,49 @@
     {{ relation_list | join(', ') }}
 
 {%- endmacro -%}
+
+{%- macro snowflake__Buffer(
+    relation_name,
+    schema,
+    geometryColumnName,
+    distance,
+    unit
+) -%}
+
+{% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
+
+{% set relation_list = [] %}
+{% for r in (relation_name if relation_name is iterable and relation_name is not string else [relation_name]) %}
+  {% if r is string %}
+    {% set r2 = r | replace('[','') | replace(']','') | replace('"','') | replace("'","") %}
+    {% do relation_list.append(r2) %}
+  {% else %}
+    {% do relation_list.append(r) %}
+  {% endif %}
+{% endfor %}
+
+{%- if unit == 'kilometers' -%}
+  {%- set distance_meters = distance * 1000 -%}
+{%- else -%}
+  {%- set distance_meters = distance * 1609.34 -%}
+{%- endif -%}
+
+{% set geom_col = prophecy_basics.quote_identifier(geometryColumnName) %}
+
+SELECT
+  {{ geom_col }} as input,
+  ST_ASWKT(
+    ST_TRANSFORM(
+      ST_BUFFER(
+        ST_TRANSFORM(
+          TO_GEOGRAPHY({{ geom_col }}),
+          3857
+        ),
+        {{ distance_meters }}
+      ),
+      4326
+    )
+  ) as output
+FROM {{ relation_list | join(', ') }}
+
+{%- endmacro %}

@@ -252,7 +252,7 @@ cell_counts_smoothed AS (
 
 SELECT
     ROUND(density, 2) AS density,
-    H3_CELL_TO_BOUNDARY_WKT(h3_cell) AS geometry_wkt
+    ST_ASWKT(H3_CELL_TO_BOUNDARY(h3_cell)) AS geometry_wkt
 FROM cell_counts_smoothed
 
 {%- endif -%}

@@ -198,6 +198,7 @@ WITH points_h3 AS (
         ) AS h3_cell,
         {{ heat_expr }} AS point_heat
     FROM {{ relation_list | join(', ') }}
+    WHERE {{ lon_col }} IS NOT NULL AND {{ lat_col }} IS NOT NULL
 ),
 
 cell_counts AS (
@@ -217,7 +218,7 @@ expanded AS (
         INPUT => CASE
             WHEN {{ gridDistance }} = 0
                 THEN ARRAY_CONSTRUCT(c.h3_cell)
-            ELSE H3_KRING(c.h3_cell, {{ gridDistance }})
+            ELSE H3_GRID_DISK(c.h3_cell, {{ gridDistance }})
         END
     ) f
 ),

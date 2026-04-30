@@ -93,8 +93,7 @@
     unit
 ) -%}
 
-{% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
-
+{# Normalize relation input #}
 {% set relation_list = [] %}
 {% for r in (relation_name if relation_name is iterable and relation_name is not string else [relation_name]) %}
   {% if r is string %}
@@ -105,10 +104,14 @@
   {% endif %}
 {% endfor %}
 
+{# Convert distance → degrees (since GEOMETRY buffer uses degrees for lat/lon) #}
 {%- if unit == 'kilometers' -%}
-  {%- set distance_meters = distance * 1000 -%}
+  {%- set distance_degrees = (distance * 1000) / 111320 -%}
+{%- elif unit == 'miles' -%}
+  {%- set distance_degrees = (distance * 1609.34) / 111320 -%}
 {%- else -%}
-  {%- set distance_meters = distance * 1609.34 -%}
+  {# assume meters #}
+  {%- set distance_degrees = distance / 111320 -%}
 {%- endif -%}
 
 {% set geom_col = prophecy_basics.quote_identifier(geometryColumnName) %}
@@ -117,8 +120,8 @@ SELECT
   {{ geom_col }} AS input,
   ST_ASWKT(
     ST_BUFFER(
-      TO_GEOGRAPHY({{ geom_col }}),
-      ({{ distance_meters }})::FLOAT
+      TRY_TO_GEOMETRY({{ geom_col }}),
+      ({{ distance_degrees }})::FLOAT
     )
   ) AS output
 FROM {{ relation_list | join(', ') }}

@@ -320,3 +320,124 @@
   {%- endif -%}
 
 {%- endmacro %}
+
+{%- macro snowflake__FindNearest(
+    relation_name,
+    source_schema,
+    target_schema,
+    sourceColumnName,
+    destinationColumnName,
+    sourceType,
+    targetType,
+    nearestPoints,
+    maxDistance,
+    units='kms',
+    ignoreZeroDistance=false
+) -%}
+
+{% set src_relation = relation_name[0] %}
+{% set tgt_relation = relation_name[1] %}
+
+{% set src_geom = prophecy_basics.quote_identifier(sourceColumnName) %}
+{% set tgt_geom = prophecy_basics.quote_identifier(destinationColumnName) %}
+
+{%- if units == 'kms' -%}
+  {%- set divisor = 1000 -%}
+  {%- set distance_col = 'distance_km' -%}
+{%- elif units == 'mls' -%}
+  {%- set divisor = 1609.34 -%}
+  {%- set distance_col = 'distance_miles' -%}
+{%- elif units == 'mtr' -%}
+  {%- set divisor = 1 -%}
+  {%- set distance_col = 'distance_meters' -%}
+{%- elif units == 'feet' -%}
+  {%- set divisor = 0.3048 -%}
+  {%- set distance_col = 'distance_feet' -%}
+{%- else -%}
+  {%- set divisor = 1000 -%}
+  {%- set distance_col = 'distance' -%}
+{%- endif -%}
+
+{% set src_cols = [] %}
+{% set tgt_cols = [] %}
+
+{% set src_names = source_schema | map(attribute='name') | list %}
+{% set tgt_names = target_schema | map(attribute='name') | list %}
+
+{% for c in src_names %}
+  {% if c in tgt_names %}
+    {% do src_cols.append('s.' ~ prophecy_basics.quote_identifier(c) ~ ' AS source_' ~ c) %}
+  {% else %}
+    {% do src_cols.append('s.' ~ prophecy_basics.quote_identifier(c)) %}
+  {% endif %}
+{% endfor %}
+
+{% for c in tgt_names %}
+  {% if c in src_names %}
+    {% do tgt_cols.append('d.' ~ prophecy_basics.quote_identifier(c) ~ ' AS target_' ~ c) %}
+  {% else %}
+    {% do tgt_cols.append('d.' ~ prophecy_basics.quote_identifier(c)) %}
+  {% endif %}
+{% endfor %}
+
+{% set src_select = src_cols | join(', ') %}
+{% set tgt_select = tgt_cols | join(', ') %}
+
+{%- if sourceType == 'point' and targetType == 'point'
+      and sourceColumnName != '' and destinationColumnName != '' -%}
+
+WITH src AS (
+    SELECT
+        SEQ8() AS s_rowid,
+        {{ src_select }},
+        TRY_TO_GEOGRAPHY({{ src_geom }}) AS src_geo
+    FROM {{ src_relation }}
+),
+
+dst AS (
+    SELECT
+        {{ tgt_select }},
+        TRY_TO_GEOGRAPHY({{ tgt_geom }}) AS dst_geo
+    FROM {{ tgt_relation }}
+),
+
+joined AS (
+    SELECT
+        s.*,
+        d.*,
+        ST_DISTANCE(s.src_geo, d.dst_geo) / {{ divisor }} AS {{ distance_col }}
+    FROM src s
+    CROSS JOIN dst d
+),
+
+filtered AS (
+    SELECT *,
+        ROW_NUMBER() OVER (
+            PARTITION BY s_rowid
+            ORDER BY {{ distance_col }}
+        ) AS rn
+    FROM joined
+    WHERE
+        src_geo IS NOT NULL
+        AND dst_geo IS NOT NULL
+        {%- if maxDistance != 0 %}
+        AND {{ distance_col }} <= {{ maxDistance }}
+        {%- endif %}
+        {%- if ignoreZeroDistance %}
+        AND {{ distance_col }} <> 0
+        {%- endif %}
+)
+
+SELECT
+    *,
+    rn AS rank_number
+FROM filtered
+WHERE rn <= {{ nearestPoints }}
+
+{%- else -%}
+
+SELECT * FROM {{ src_relation }}
+
+{%- endif -%}
+
+{%- endmacro %}

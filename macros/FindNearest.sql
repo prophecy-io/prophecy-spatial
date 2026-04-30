@@ -358,45 +358,20 @@
   {%- set distance_col = 'distance' -%}
 {%- endif -%}
 
-{% set src_cols = [] %}
-{% set tgt_cols = [] %}
-
 {% set src_names = source_schema | map(attribute='name') | list %}
 {% set tgt_names = target_schema | map(attribute='name') | list %}
-
-{% for c in src_names %}
-  {% if c in tgt_names %}
-    {% do src_cols.append('s.' ~ prophecy_basics.quote_identifier(c) ~ ' AS source_' ~ c) %}
-  {% else %}
-    {% do src_cols.append('s.' ~ prophecy_basics.quote_identifier(c)) %}
-  {% endif %}
-{% endfor %}
-
-{% for c in tgt_names %}
-  {% if c in src_names %}
-    {% do tgt_cols.append('d.' ~ prophecy_basics.quote_identifier(c) ~ ' AS target_' ~ c) %}
-  {% else %}
-    {% do tgt_cols.append('d.' ~ prophecy_basics.quote_identifier(c)) %}
-  {% endif %}
-{% endfor %}
-
-{% set src_select = src_cols | join(', ') %}
-{% set tgt_select = tgt_cols | join(', ') %}
-
-{%- if sourceType == 'point' and targetType == 'point'
-      and sourceColumnName != '' and destinationColumnName != '' -%}
 
 WITH src AS (
     SELECT
         SEQ8() AS s_rowid,
-        {{ src_select }},
+        *,
         TRY_TO_GEOGRAPHY({{ src_geom }}) AS src_geo
     FROM {{ src_relation }}
 ),
 
 dst AS (
     SELECT
-        {{ tgt_select }},
+        *,
         TRY_TO_GEOGRAPHY({{ tgt_geom }}) AS dst_geo
     FROM {{ tgt_relation }}
 ),
@@ -410,7 +385,7 @@ joined AS (
     CROSS JOIN dst d
 ),
 
-filtered AS (
+ranked AS (
     SELECT *,
         ROW_NUMBER() OVER (
             PARTITION BY s_rowid
@@ -429,15 +404,23 @@ filtered AS (
 )
 
 SELECT
-    *,
-    rn AS rank_number
-FROM filtered
+{% for c in src_names %}
+  {% if c in tgt_names %}
+    {{ 'source_' ~ c }} ,
+  {% else %}
+    {{ c }} ,
+  {% endif %}
+{% endfor %}
+{% for c in tgt_names %}
+  {% if c in src_names %}
+    {{ 'target_' ~ c }} ,
+  {% else %}
+    {{ c }} ,
+  {% endif %}
+{% endfor %}
+rn AS rank_number,
+{{ distance_col }}
+FROM ranked
 WHERE rn <= {{ nearestPoints }}
-
-{%- else -%}
-
-SELECT * FROM {{ src_relation }}
-
-{%- endif -%}
 
 {%- endmacro %}

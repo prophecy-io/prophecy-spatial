@@ -137,7 +137,7 @@ class SpatialMatch(MacroSpec):
                                 variant="info",
                                 _children=[
                                     Markdown(
-                                        "![alt text](https://docs.prophecy.io/img/spatial/match-types.jpg)"
+                                        "![alt text](https://docs.prophecy.ai/data-analysis/gems/spatial/img/match-types.jpg)"
                                     )
                                 ]
                             )

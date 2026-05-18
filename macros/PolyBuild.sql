@@ -160,3 +160,139 @@
     FROM verts
 {% endif %}
 {% endmacro %}
+
+{% macro snowflake__PolyBuild(
+        relation_name,
+        buildMethod,
+        longitudeColumnName,
+        latitudeColumnName,
+        groupColumnName='',
+        sequenceColumnName=''
+) -%}
+
+    {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
+
+    {# ── validate empty lon/lat columns ───────────────────────────── #}
+
+    {% if longitudeColumnName | trim | length == 0
+          or latitudeColumnName | trim | length == 0 %}
+
+        {{ log('PolyBuild: lon/lat column missing → returning raw rows.', info=True) }}
+
+        SELECT *
+        FROM ( {{ relation_list | join(', ') }} ) AS base
+
+    {% else %}
+
+        {% set method = buildMethod | lower %}
+
+        {% set has_group = groupColumnName | trim | length > 0 %}
+        {% set has_seq   = sequenceColumnName | trim | length > 0 %}
+
+        {# ── quoted identifiers using prophecy_basics ─────────────── #}
+
+        {% set lon = prophecy_basics.quote_identifier(longitudeColumnName) %}
+        {% set lat = prophecy_basics.quote_identifier(latitudeColumnName) %}
+
+        {% if has_group %}
+            {% set grp = prophecy_basics.quote_identifier(groupColumnName) %}
+        {% endif %}
+
+        {% if has_seq %}
+            {% set seq = prophecy_basics.quote_identifier(sequenceColumnName) %}
+        {% endif %}
+
+        WITH coords AS (
+
+            SELECT
+
+                {% if has_group %}
+                    base.{{ grp }} AS grouping_column_name,
+                {% else %}
+                    1 AS grouping_column_name,
+                {% endif %}
+
+                {% if has_seq %}
+                    base.{{ seq }} AS sequencing_column_name,
+                {% else %}
+                    CONCAT(base.{{ lon }}, base.{{ lat }}) AS sequencing_column_name,
+                {% endif %}
+
+                CONCAT(
+                    CAST(base.{{ lon }} AS STRING),
+                    ' ',
+                    CAST(base.{{ lat }} AS STRING)
+                ) AS coord
+
+            FROM ( {{ relation_list | join(', ') }} ) AS base
+
+        ),
+
+        ordered AS (
+
+            SELECT
+
+                grouping_column_name,
+
+                ARRAY_AGG(
+                    OBJECT_CONSTRUCT(
+                        'seq', sequencing_column_name,
+                        'coord', coord
+                    )
+                ) WITHIN GROUP (
+                    ORDER BY sequencing_column_name
+                ) AS ordered_coords
+
+            FROM coords
+            GROUP BY grouping_column_name
+
+        ),
+
+        verts AS (
+
+            SELECT
+
+                grouping_column_name,
+
+                ARRAY_AGG(
+                    value:coord::string
+                ) AS v
+
+            FROM ordered,
+                 LATERAL FLATTEN(input => ordered_coords)
+
+            GROUP BY grouping_column_name
+
+        )
+
+        SELECT
+
+            {% if has_group %}
+                grouping_column_name,
+            {% endif %}
+
+            CASE
+
+                WHEN '{{ method }}' = 'sequencepolygon'
+
+                THEN CONCAT(
+                        'POLYGON((',
+                        ARRAY_TO_STRING(v, ', '),
+                        ', ',
+                        v[0]::string,
+                        '))'
+                     )
+
+                ELSE CONCAT(
+                        'LINESTRING(',
+                        ARRAY_TO_STRING(v, ', '),
+                        ')'
+                     )
+
+            END AS geometry_wkt
+
+        FROM verts
+
+    {% endif %}
+
+{%- endmacro %}

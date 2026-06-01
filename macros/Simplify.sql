@@ -13,8 +13,9 @@
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geom_column_name (string): WKT column; ST_GeomFromText(..., 4326).
     - tolerance (numeric): Simplification tolerance in kilometers if unit is
-      "kilometers", else miles (converted to meters via ×1609.34).
-    - unit (string): "kilometers" → tolerance×1000 meters; otherwise miles.
+      "kms" (or "kilometers"), else miles (converted to meters via ×1609.34).
+    - unit (string): "kms"/"kilometers" → tolerance×1000 meters; otherwise miles.
+      (The gem sends "kms" or "miles".)
 
   Adapter Support:
     - Default (Spark/Databricks-style ST_Simplify / ST_Transform 4326↔3857)
@@ -23,11 +24,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kilometers') }}
+    {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kms') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kilometers') }}
+      {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kms') }}
 
     Resolved query (default__):
       SELECT
@@ -59,7 +60,7 @@
   {{ log("tolerance=" ~ tolerance, info=True) }}
   {{ log("unit=" ~ unit, info=True) }}
 
-  {%- if unit == 'kilometers' -%}
+  {%- if unit in ['kms', 'kilometers'] -%}
     {%- set tolerance_meters = tolerance * 1000 -%}
   {%- else -%}
     {%- set tolerance_meters = tolerance * 1609.34 -%}
@@ -100,7 +101,7 @@
     {{ log("tolerance=" ~ tolerance, info=True) }}
     {{ log("unit=" ~ unit, info=True) }}
 
-    {%- if unit == 'kilometers' -%}
+    {%- if unit in ['kms', 'kilometers'] -%}
         {%- set tolerance_meters = tolerance * 1000 -%}
     {%- else -%}
         {%- set tolerance_meters = tolerance * 1609.34 -%}

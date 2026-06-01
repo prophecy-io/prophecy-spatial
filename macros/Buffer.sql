@@ -12,11 +12,11 @@
       passed through to SQL (add quoting/qualifiers as required by your warehouse).
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geometryColumnName (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
-    - distance (numeric): Buffer distance in kilometers when unit is
-      "kilometers", otherwise treated as miles and converted to meters
+    - distance (numeric): Buffer distance in kilometers when unit is "kms"
+      (or "kilometers"), otherwise treated as miles and converted to meters
       (×1609.34).
-    - unit (string): "kilometers" uses distance×1000 as meters; any other value
-      uses miles-to-meters conversion.
+    - unit (string): "kms"/"kilometers" uses distance×1000 as meters; any other
+      value uses miles-to-meters conversion. (The gem sends "kms" or "miles".)
 
   Adapter Support:
     - Default (Spark/Databricks-style ST_*; ST_Transform 4326↔3857, ST_Buffer in meters)
@@ -25,11 +25,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.Buffer(['roads'], 'staging', 'geom_wkt', 0.5, 'kilometers') }}
+    {{ prophecy_spatial.Buffer(['roads'], 'staging', 'geom_wkt', 0.5, 'kms') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.Buffer(['roads'], 'staging', 'geom_wkt', 0.5, 'kilometers') }}
+      {{ prophecy_spatial.Buffer(['roads'], 'staging', 'geom_wkt', 0.5, 'kms') }}
 
     Resolved query (default__):
       SELECT
@@ -60,7 +60,7 @@
   {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
 
-  {%- if unit == 'kilometers' -%}
+  {%- if unit in ['kms', 'kilometers'] -%}
     {%- set distance_meters = distance * 1000 -%}
   {%- else -%}
     {%- set distance_meters = distance * 1609.34 -%}
@@ -107,9 +107,9 @@
 {# Convert distance → degrees (planar GEOMETRY buffer in lat/lon degrees).
    Note: approximate (longitude degrees shrink with latitude), but avoids the
    heavy ST_TRANSFORM reprojection that stalls interactive runs. #}
-{%- if unit == 'kilometers' -%}
+{%- if unit in ['kms', 'kilometers'] -%}
   {%- set distance_degrees = (distance * 1000) / 111320 -%}
-{%- elif unit == 'miles' -%}
+{%- elif unit in ['miles', 'mls'] -%}
   {%- set distance_degrees = (distance * 1609.34) / 111320 -%}
 {%- else -%}
   {# assume meters #}

@@ -255,11 +255,11 @@
                 grouping_column_name,
 
                 ARRAY_AGG(
-                    value:coord::string
-                ) AS v
+                    f.value:coord::string
+                ) WITHIN GROUP (ORDER BY f.index) AS v
 
             FROM ordered,
-                 LATERAL FLATTEN(input => ordered_coords)
+                 LATERAL FLATTEN(input => ordered_coords) AS f
 
             GROUP BY grouping_column_name
 

@@ -212,7 +212,7 @@ cell_counts AS (
 expanded AS (
     SELECT
         c.h3_cell,
-        f.value::STRING AS neighbour
+        f.value::INTEGER AS neighbour
     FROM cell_counts c,
     LATERAL FLATTEN(
         INPUT => CASE
@@ -235,9 +235,9 @@ cell_counts_smoothed AS (
                     {% if decay == 'constant' %}
                         WHEN TRUE THEN 1
                     {% elif decay == 'linear' %}
-                        WHEN TRUE THEN (1 - (H3_DISTANCE(c.h3_cell, neighbour) / ({{ gridDistance }} + 1)))
+                        WHEN TRUE THEN (1 - (H3_GRID_DISTANCE(c.h3_cell, neighbour) / ({{ gridDistance }} + 1)))
                     {% elif decay == 'exp' %}
-                        WHEN TRUE THEN POWER(0.5, H3_DISTANCE(c.h3_cell, neighbour))
+                        WHEN TRUE THEN POWER(0.5, H3_GRID_DISTANCE(c.h3_cell, neighbour))
                     {% else %}
                         WHEN TRUE THEN 1
                     {% endif %}

@@ -378,8 +378,15 @@ dst AS (
 
 joined AS (
     SELECT
-        s.*,
-        d.*,
+        s.s_rowid,
+        {%- for c in src_names %}
+        s.{{ prophecy_basics.quote_identifier(c) }} AS {% if c in tgt_names %}{{ prophecy_basics.quote_identifier('source_' ~ c) }}{% else %}{{ prophecy_basics.quote_identifier(c) }}{% endif %},
+        {%- endfor %}
+        {%- for c in tgt_names %}
+        d.{{ prophecy_basics.quote_identifier(c) }} AS {% if c in src_names %}{{ prophecy_basics.quote_identifier('target_' ~ c) }}{% else %}{{ prophecy_basics.quote_identifier(c) }}{% endif %},
+        {%- endfor %}
+        s.src_geo,
+        d.dst_geo,
         ST_DISTANCE(s.src_geo, d.dst_geo) / {{ divisor }} AS {{ distance_col }}
     FROM src s
     CROSS JOIN dst d
@@ -406,14 +413,14 @@ ranked AS (
 SELECT
 {% for c in src_names %}
   {% if c in tgt_names %}
-    ranked.{{ prophecy_basics.quote_identifier(c) }} AS source_{{ c }},
+    ranked.{{ prophecy_basics.quote_identifier('source_' ~ c) }},
   {% else %}
     ranked.{{ prophecy_basics.quote_identifier(c) }},
   {% endif %}
 {% endfor %}
 {% for c in tgt_names %}
   {% if c in src_names %}
-    ranked.{{ prophecy_basics.quote_identifier(c) }} AS target_{{ c }},
+    ranked.{{ prophecy_basics.quote_identifier('target_' ~ c) }},
   {% else %}
     ranked.{{ prophecy_basics.quote_identifier(c) }},
   {% endif %}

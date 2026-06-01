@@ -77,11 +77,11 @@
     match_type
 ) -%}
 
+    {# Snowflake has no ST_TOUCHES for GEOGRAPHY, so 'touches' is handled below. #}
     {% set fn_map = {
         'intersects': 'ST_INTERSECTS',
         'contains': 'ST_CONTAINS',
-        'within': 'ST_WITHIN',
-        'touches': 'ST_TOUCHES'
+        'within': 'ST_WITHIN'
     } %}
 
     {% set source_relation = relation_name[0] %}
@@ -130,15 +130,27 @@
                 TO_GEOGRAPHY(target.{{ quoted_target_column }})
             )
 
-        {% elif match_type == 'touches_or_intersects' %}
+        {% elif match_type == 'touches' %}
 
-            ST_TOUCHES(
+            {# Snowflake lacks ST_TOUCHES: emulate as "they intersect but their
+               interiors do not overlap" via a zero-area intersection. #}
+            ST_INTERSECTS(
                 TO_GEOGRAPHY(source.{{ quoted_source_column }}),
                 TO_GEOGRAPHY(target.{{ quoted_target_column }})
             )
 
-            OR
+            AND
 
+            ST_AREA(
+                ST_INTERSECTION(
+                    TO_GEOGRAPHY(source.{{ quoted_source_column }}),
+                    TO_GEOGRAPHY(target.{{ quoted_target_column }})
+                )
+            ) = 0
+
+        {% elif match_type == 'touches_or_intersects' %}
+
+            {# touches is a subset of intersects, so this reduces to intersects. #}
             ST_INTERSECTS(
                 TO_GEOGRAPHY(source.{{ quoted_source_column }}),
                 TO_GEOGRAPHY(target.{{ quoted_target_column }})

@@ -104,14 +104,16 @@
   {% endif %}
 {% endfor %}
 
-{# Buffer in Web Mercator meters (matches default__Buffer), then back to WGS84. #}
+{# Convert distance → degrees (planar GEOMETRY buffer in lat/lon degrees).
+   Note: approximate (longitude degrees shrink with latitude), but avoids the
+   heavy ST_TRANSFORM reprojection that stalls interactive runs. #}
 {%- if unit == 'kilometers' -%}
-  {%- set distance_meters = distance * 1000 -%}
+  {%- set distance_degrees = (distance * 1000) / 111320 -%}
 {%- elif unit == 'miles' -%}
-  {%- set distance_meters = distance * 1609.34 -%}
+  {%- set distance_degrees = (distance * 1609.34) / 111320 -%}
 {%- else -%}
   {# assume meters #}
-  {%- set distance_meters = distance -%}
+  {%- set distance_degrees = distance / 111320 -%}
 {%- endif -%}
 
 {% set geom_col = prophecy_basics.quote_identifier(geometryColumnName) %}
@@ -119,17 +121,9 @@
 SELECT
   {{ geom_col }} AS input,
   ST_ASWKT(
-    ST_TRANSFORM(
-      ST_BUFFER(
-        ST_TRANSFORM(
-          TRY_TO_GEOMETRY({{ geom_col }}),
-          4326,
-          3857
-        ),
-        ({{ distance_meters }})::FLOAT
-      ),
-      3857,
-      4326
+    ST_BUFFER(
+      TRY_TO_GEOMETRY({{ geom_col }}),
+      ({{ distance_degrees }})::FLOAT
     )
   ) AS output
 FROM {{ relation_list | join(', ') }}

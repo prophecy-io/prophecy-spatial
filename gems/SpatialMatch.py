@@ -54,7 +54,7 @@ class SpatialMatch(MacroSpec):
         """Return list[str] one compact JSON blob per input port."""
         schemas = []
         for inputPort in component.ports.inputs:
-            raw_schema = json.loads(str(inputPort.schema).replace("'", '"'))
+            raw_schema = (json.loads(inputPort.schema) if isinstance(inputPort.schema, str) else (inputPort.schema or {}))
             fields_arr = [str(f["name"]) for f in raw_schema["fields"]]
             schemas.append(fields_arr)
         return schemas
@@ -173,8 +173,8 @@ class SpatialMatch(MacroSpec):
                            SeverityLevelEnum.Error)
             )
 
-        source_schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        target_schema = json.loads(str(component.ports.inputs[1].schema).replace("'", '"'))
+        source_schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
+        target_schema = (json.loads(component.ports.inputs[1].schema) if isinstance(component.ports.inputs[1].schema, str) else (component.ports.inputs[1].schema or {}))
         source_field_names = [field["name"] for field in source_schema["fields"]]
         target_field_names = [field["name"] for field in target_schema["fields"]]
 

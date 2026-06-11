@@ -128,7 +128,7 @@ class CreatePoint(MacroSpec):
         numeric_types = {"int", "integer", "float", "double", "long", "decimal", "bigint", "smallint", "tinyint"}
 
         # Step 1: Load and parse the schema
-        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
         type_lookup = {field["name"]: field["dataType"]["type"].lower() for field in schema["fields"]}
 
         # Step 2: Iterate through fields and check if the longitude column is numeric

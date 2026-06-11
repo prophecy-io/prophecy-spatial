@@ -133,7 +133,7 @@ class PolyBuild(MacroSpec):
                 Diagnostic("component.properties.latitudeColumnName", "Please select the latitude column",
                            SeverityLevelEnum.Error))
 
-        schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
+        schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
         field_names = [field["name"] for field in schema["fields"]]
         if component.properties.longitudeColumnName !='' and component.properties.longitudeColumnName not in field_names:
             diagnostics.append(

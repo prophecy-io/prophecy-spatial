@@ -172,8 +172,8 @@ class FindNearest(MacroSpec):
                            SeverityLevelEnum.Error)
             )
 
-        source_schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        target_schema = json.loads(str(component.ports.inputs[1].schema).replace("'", '"'))
+        source_schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
+        target_schema = (json.loads(component.ports.inputs[1].schema) if isinstance(component.ports.inputs[1].schema, str) else (component.ports.inputs[1].schema or {}))
         source_field_names = [field["name"] for field in source_schema["fields"]]
         target_field_names = [field["name"] for field in target_schema["fields"]]
 
@@ -195,8 +195,8 @@ class FindNearest(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
-        source_schema = json.loads(str(newState.ports.inputs[0].schema).replace("'", '"'))
-        target_schema = json.loads(str(newState.ports.inputs[1].schema).replace("'", '"'))
+        source_schema = (json.loads(newState.ports.inputs[0].schema) if isinstance(newState.ports.inputs[0].schema, str) else (newState.ports.inputs[0].schema or {}))
+        target_schema = (json.loads(newState.ports.inputs[1].schema) if isinstance(newState.ports.inputs[1].schema, str) else (newState.ports.inputs[1].schema or {}))
 
         source_fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in source_schema["fields"]]
         target_fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in target_schema["fields"]]
@@ -272,8 +272,8 @@ class FindNearest(MacroSpec):
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
         # Handle changes in the component's state and return the new state
-        source_schema = json.loads(str(component.ports.inputs[0].schema).replace("'", '"'))
-        target_schema = json.loads(str(component.ports.inputs[1].schema).replace("'", '"'))
+        source_schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
+        target_schema = (json.loads(component.ports.inputs[1].schema) if isinstance(component.ports.inputs[1].schema, str) else (component.ports.inputs[1].schema or {}))
 
         source_fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in source_schema["fields"]]
         target_fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in target_schema["fields"]]

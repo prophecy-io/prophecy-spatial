@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 setup(
     name = 'prophecy_spatial',
-    version = '1.0.2.dev0',
+    version = '1.0.2',
     packages = ['prophecy_spatial'],
     package_dir = {'prophecy_spatial': '.'},
     description = '',

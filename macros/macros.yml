@@ -42,6 +42,7 @@ macros:
     - name: "outputDirectionDegrees"
       type: "value"
       description: "{\"ProphecyType\": \"value\"}"
+  macroType: "query"
 - name: "PolyBuild"
   arguments:
   - name: "relation_name"

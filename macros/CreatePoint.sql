@@ -59,3 +59,36 @@
         from `{{ relation }}`
     {%- endif %}
 {%- endmacro -%}
+
+{%- macro snowflake__CreatePoint(
+        relation, matchFields
+) -%}
+
+    {%- set invalid_fields = [] -%}
+    {%- for fields in matchFields %}
+        {%- if fields[0] | length == 0 or fields[1] | length == 0 or fields[2] | length == 0 %}
+            {%- do invalid_fields.append(true) %}
+        {%- endif %}
+    {%- endfor %}
+
+    {%- if matchFields | length == 0 or invalid_fields | length > 0 %}
+        SELECT *
+        FROM ( {{ relation }} ) AS base
+    {%- else %}
+
+        SELECT
+            base.*,
+            {%- for fields in matchFields %}
+                CONCAT(
+                    'POINT (',
+                    base.{{ prophecy_basics.quote_identifier(fields[0]) }},
+                    ' ',
+                    base.{{ prophecy_basics.quote_identifier(fields[1]) }},
+                    ')'
+                ) AS {{ prophecy_basics.quote_identifier(fields[2]) }}
+                {%- if not loop.last %},{% endif %}
+            {%- endfor %}
+
+        FROM ( {{ relation }} ) AS base
+    {%- endif %}
+{%- endmacro %}

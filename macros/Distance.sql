@@ -232,3 +232,154 @@
   {%- endif -%}
 
 {% endmacro %}
+
+{%- macro snowflake__Distance(
+    relation_name,
+    schema,
+    sourceColumnNames,
+    destinationColumnNames,
+    sourceType,
+    destinationType,
+    outputDistance,
+    units,
+    outputCardDirection,
+    outputDirectionDegrees
+) -%}
+
+{% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
+
+{% set relation_list = [] %}
+{% for r in (relation_name if relation_name is iterable and relation_name is not string else [relation_name]) %}
+  {% if r is string %}
+    {% set r2 = r | replace('[','') | replace(']','') | replace('"','') | replace("'","") %}
+    {% do relation_list.append(r2) %}
+  {% else %}
+    {% do relation_list.append(r) %}
+  {% endif %}
+{% endfor %}
+
+{% set cols = [] %}
+{% if schema is string %}
+  {% set parsed = fromjson(schema) %}
+{% else %}
+  {% set parsed = schema %}
+{% endif %}
+{% for field in parsed %}
+  {% do cols.append(field["name"]) %}
+{% endfor %}
+
+{% set cols_str = prophecy_basics.quote_column_list(cols | join(', ')) if cols|length > 0 else "*" %}
+
+{% set src_col = prophecy_basics.quote_identifier(sourceColumnNames) %}
+{% set dst_col = prophecy_basics.quote_identifier(destinationColumnNames) %}
+
+{%- if sourceType == 'point'
+      and destinationType == 'point'
+      and (outputDistance or outputCardDirection or outputDirectionDegrees)
+-%}
+
+  {%- if units == 'kms' -%}
+    {%- set distance_col = 'distanceKilometers' -%}
+    {%- set radius        = 6371 -%}
+  {%- elif units == 'mls' -%}
+    {%- set distance_col = 'distanceMiles' -%}
+    {%- set radius        = 3958.8 -%}
+  {%- elif units == 'mtr' -%}
+    {%- set distance_col = 'distanceMeters' -%}
+    {%- set radius        = 6371000 -%}
+  {%- elif units == 'feet' -%}
+    {%- set distance_col = 'distanceFeet' -%}
+    {%- set radius        = 6371000 * 3.28084 -%}
+  {%- else -%}
+    {%- set distance_col = 'distance' -%}
+    {%- set radius        = 6371 -%}
+  {%- endif -%}
+
+  {%- set direction_col = 'cardinal_direction' -%}
+  {%- set degrees_col   = 'direction_degrees'   -%}
+  {%- set needs_bearing = outputCardDirection or outputDirectionDegrees -%}
+
+  WITH _coords AS (
+    SELECT
+      {{ cols_str }},
+      CAST(
+        SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+      AS DOUBLE) AS lon1,
+      CAST(
+        SPLIT_PART(REPLACE(REPLACE(REPLACE({{ src_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+      AS DOUBLE) AS lat1,
+      CAST(
+        SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 1)
+      AS DOUBLE) AS lon2,
+      CAST(
+        SPLIT_PART(REPLACE(REPLACE(REPLACE({{ dst_col }}, 'POINT (', ''), 'POINT(', ''), ')', ''), ' ', 2)
+      AS DOUBLE) AS lat2
+    FROM {{ relation_list | join(', ') }}
+  )
+
+  {%- if needs_bearing %}
+  , _with_bearing AS (
+    SELECT
+      *,
+      MOD(
+        DEGREES(
+          ATAN2(
+            RADIANS(lon2 - lon1),
+            LN(
+              TAN(RADIANS(lat2)/2 + PI()/4)
+              / TAN(RADIANS(lat1)/2 + PI()/4)
+            )
+          )
+        ) + 360,
+        360
+      ) AS bearing_deg
+    FROM _coords
+  )
+
+  SELECT
+    {{ cols_str }}
+    {%- if outputDistance %},
+    {{ radius }} * 2 * ASIN(
+      SQRT(
+        POWER(SIN(RADIANS((lat2 - lat1) / 2)), 2)
+        + COS(RADIANS(lat1)) * COS(RADIANS(lat2))
+        * POWER(SIN(RADIANS((lon2 - lon1) / 2)), 2)
+      )
+    ) AS {{ distance_col }}{%- endif %}
+    {%- if outputCardDirection %},
+    CASE
+      WHEN bearing_deg < 22.5 OR bearing_deg >= 337.5 THEN 'N'
+      WHEN bearing_deg < 67.5 THEN 'NE'
+      WHEN bearing_deg < 112.5 THEN 'E'
+      WHEN bearing_deg < 157.5 THEN 'SE'
+      WHEN bearing_deg < 202.5 THEN 'S'
+      WHEN bearing_deg < 247.5 THEN 'SW'
+      WHEN bearing_deg < 292.5 THEN 'W'
+      ELSE 'NW'
+    END AS {{ direction_col }}{%- endif %}
+    {%- if outputDirectionDegrees %},
+    bearing_deg AS {{ degrees_col }}{%- endif %}
+  FROM _with_bearing
+
+  {%- else %}
+
+    SELECT
+      {{ cols_str }},
+      {{ radius }} * 2 * ASIN(
+        SQRT(
+          POWER(SIN(RADIANS((lat2 - lat1) / 2)), 2)
+          + COS(RADIANS(lat1)) * COS(RADIANS(lat2))
+          * POWER(SIN(RADIANS((lon2 - lon1) / 2)), 2)
+        )
+      ) AS {{ distance_col }}
+    FROM _coords
+
+  {%- endif %}
+
+{%- else -%}
+
+  SELECT * FROM {{ relation_list | join(', ') }}
+
+{%- endif -%}
+
+{%- endmacro %}

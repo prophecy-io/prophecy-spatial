@@ -17,7 +17,7 @@ class SpatialMatch(MacroSpec):
     minNumOfInputPorts: int = 2
     supportedProviderTypes: list[ProviderTypeEnum] = [
         ProviderTypeEnum.Databricks,
-        # ProviderTypeEnum.Snowflake,
+        ProviderTypeEnum.Snowflake,
         ProviderTypeEnum.BigQuery,
         # ProviderTypeEnum.ProphecyManaged
     ]

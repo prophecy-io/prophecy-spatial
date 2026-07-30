@@ -159,3 +159,102 @@ FROM cell_counts_smoothed
 
 {%- endif -%}
 {%- endmacro -%}
+
+{%- macro snowflake__HeatMap(
+        relation_name,
+        longitudeColumnName,
+        latitudeColumnName,
+        resolution,
+        gridDistance,
+        heatColumnName = none,
+        decayType      = 'constant'
+    ) -%}
+
+{% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
+
+{% set lon_col = prophecy_basics.quote_identifier(longitudeColumnName) %}
+{% set lat_col = prophecy_basics.quote_identifier(latitudeColumnName) %}
+
+{%- if longitudeColumnName | trim | length == 0
+      or latitudeColumnName  | trim | length == 0 -%}
+
+SELECT * FROM {{ relation_list | join(', ') }}
+
+{%- else -%}
+
+{%- if heatColumnName is not none and heatColumnName | trim | length > 0 -%}
+    {%- set heat_expr = prophecy_basics.quote_identifier(heatColumnName) -%}
+{%- else -%}
+    {%- set heat_expr = '1' -%}
+{%- endif -%}
+
+{%- set decay = (decayType | lower | trim) or 'constant' -%}
+
+WITH points_h3 AS (
+    SELECT
+        H3_POINT_TO_CELL(
+            TO_GEOGRAPHY(ST_MAKEPOINT({{ lon_col }}, {{ lat_col }})),
+            {{ resolution }}
+        ) AS h3_cell,
+        {{ heat_expr }} AS point_heat
+    FROM {{ relation_list | join(', ') }}
+    WHERE {{ lon_col }} IS NOT NULL AND {{ lat_col }} IS NOT NULL
+),
+
+cell_counts AS (
+    SELECT
+        h3_cell,
+        SUM(point_heat) AS raw_heat
+    FROM points_h3
+    GROUP BY h3_cell
+),
+
+expanded AS (
+    SELECT
+        c.h3_cell,
+        f.value::INTEGER AS neighbour
+    FROM cell_counts c,
+    LATERAL FLATTEN(
+        INPUT => CASE
+            WHEN {{ gridDistance }} = 0
+                THEN ARRAY_CONSTRUCT(c.h3_cell)
+            ELSE H3_GRID_DISK(c.h3_cell, {{ gridDistance }})
+        END
+    ) f
+),
+
+cell_counts_smoothed AS (
+    SELECT
+        neighbour AS h3_cell,
+        SUM(
+            c.raw_heat *
+            CASE
+                {% if gridDistance == 0 %}
+                    WHEN TRUE THEN 1
+                {% else %}
+                    {% if decay == 'constant' %}
+                        WHEN TRUE THEN 1
+                    {% elif decay == 'linear' %}
+                        WHEN TRUE THEN (1 - (H3_GRID_DISTANCE(c.h3_cell, neighbour) / ({{ gridDistance }} + 1)))
+                    {% elif decay == 'exp' %}
+                        WHEN TRUE THEN POWER(0.5, H3_GRID_DISTANCE(c.h3_cell, neighbour))
+                    {% else %}
+                        WHEN TRUE THEN 1
+                    {% endif %}
+                {% endif %}
+            END
+        ) AS density
+    FROM expanded e
+    JOIN cell_counts c
+      ON e.h3_cell = c.h3_cell
+    GROUP BY neighbour
+)
+
+SELECT
+    ROUND(density, 2) AS density,
+    ST_ASWKT(H3_CELL_TO_BOUNDARY(h3_cell)) AS geometry_wkt
+FROM cell_counts_smoothed
+
+{%- endif -%}
+
+{%- endmacro %}

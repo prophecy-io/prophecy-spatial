@@ -69,7 +69,7 @@
     match_type)) }}
 {% endmacro %}
 
-{% macro default__SpatialMatch(
+{% macro snowflake__SpatialMatch(
     relation_name,
     schemas,
     source_column,
@@ -77,59 +77,100 @@
     match_type
 ) -%}
 
-  {% set fn_map = {
-    'intersects': 'ST_Intersects',
-    'contains': 'ST_Contains',
-    'within': 'ST_Within',
-    'touches': 'ST_Touches'
-  } %}
+    {# Snowflake has no ST_TOUCHES for GEOGRAPHY, so 'touches' is handled below. #}
+    {% set fn_map = {
+        'intersects': 'ST_INTERSECTS',
+        'contains': 'ST_CONTAINS',
+        'within': 'ST_WITHIN'
+    } %}
 
-  {% set source_relation = relation_name[0] %}
-  {% set target_relation = relation_name[1] %}
+    {% set source_relation = relation_name[0] %}
+    {% set target_relation = relation_name[1] %}
 
-  {% set source_columns = schemas[0] %}
-  {% set target_columns = schemas[1] %}
-  {% set quoted_source_column = adapter.quote(source_column) %}
-  {% set quoted_target_column = adapter.quote(target_column) %}
+    {% set source_columns = schemas[0] %}
+    {% set target_columns = schemas[1] %}
 
-  {% set source_select = [] %}
-  {% for col in source_columns %}
-    {% do source_select.append('source.' ~ adapter.quote(col)) %}
-  {% endfor %}
+    {% set quoted_source_column = prophecy_basics.quote_identifier(source_column) %}
+    {% set quoted_target_column = prophecy_basics.quote_identifier(target_column) %}
 
-  {% set target_select = [] %}
-  {% for col in target_columns %}
-    {% do target_select.append('target.' ~ adapter.quote(col) ~ ' AS ' ~ adapter.quote('target_' ~ col)) %}
-  {% endfor %}
+    {% set source_select = [] %}
 
-  {% set spatial_fn = fn_map.get(match_type) %}
+    {% for col in source_columns %}
+        {% do source_select.append(
+            'source.' ~ prophecy_basics.quote_identifier(col)
+        ) %}
+    {% endfor %}
 
-  SELECT
-    {{ (source_select + target_select) | join(',\n    ') }}
-  FROM {{ source_relation }} AS source
-  CROSS JOIN {{ target_relation }} AS target
-  WHERE
-    {% if spatial_fn %}
-      {{ spatial_fn }}(
-        ST_GeomFromText(source.{{ quoted_source_column }}),
-        ST_GeomFromText(target.{{ quoted_target_column }})
-      )
-    {% elif match_type == 'touches_or_intersects' %}
-      ST_Touches(
-        ST_GeomFromText(source.{{ quoted_source_column }}),
-        ST_GeomFromText(target.{{ quoted_target_column }})
-      )
-      OR ST_Intersects(
-        ST_GeomFromText(source.{{ quoted_source_column }}),
-        ST_GeomFromText(target.{{ quoted_target_column }})
-      )
-    {% elif match_type == 'envelope' %}
-      ST_Intersects(
-        ST_Envelope(ST_GeomFromText(source.{{ quoted_source_column }})),
-        ST_Envelope(ST_GeomFromText(target.{{ quoted_target_column }}))
-      )
-    {% else %}
-      1=1 -- fallback if no known type
-    {% endif %}
+    {% set target_select = [] %}
+
+    {% for col in target_columns %}
+        {% do target_select.append(
+            'target.' ~ prophecy_basics.quote_identifier(col)
+            ~ ' AS '
+            ~ prophecy_basics.quote_identifier('target_' ~ col)
+        ) %}
+    {% endfor %}
+
+    {% set spatial_fn = fn_map.get(match_type) %}
+
+    SELECT
+
+        {{ (source_select + target_select) | join(',\n        ') }}
+
+    FROM ( {{ source_relation }} ) AS source
+
+    CROSS JOIN ( {{ target_relation }} ) AS target
+
+    WHERE
+
+        {% if spatial_fn %}
+
+            {{ spatial_fn }}(
+                TO_GEOGRAPHY(source.{{ quoted_source_column }}),
+                TO_GEOGRAPHY(target.{{ quoted_target_column }})
+            )
+
+        {% elif match_type == 'touches' %}
+
+            {# Snowflake lacks ST_TOUCHES: emulate as "they intersect but their
+               interiors do not overlap" via a zero-area intersection. #}
+            ST_INTERSECTS(
+                TO_GEOGRAPHY(source.{{ quoted_source_column }}),
+                TO_GEOGRAPHY(target.{{ quoted_target_column }})
+            )
+
+            AND
+
+            ST_AREA(
+                ST_INTERSECTION(
+                    TO_GEOGRAPHY(source.{{ quoted_source_column }}),
+                    TO_GEOGRAPHY(target.{{ quoted_target_column }})
+                )
+            ) = 0
+
+        {% elif match_type == 'touches_or_intersects' %}
+
+            {# touches is a subset of intersects, so this reduces to intersects. #}
+            ST_INTERSECTS(
+                TO_GEOGRAPHY(source.{{ quoted_source_column }}),
+                TO_GEOGRAPHY(target.{{ quoted_target_column }})
+            )
+
+        {% elif match_type == 'envelope' %}
+
+            ST_INTERSECTS(
+                ST_ENVELOPE(
+                    TO_GEOGRAPHY(source.{{ quoted_source_column }})
+                ),
+                ST_ENVELOPE(
+                    TO_GEOGRAPHY(target.{{ quoted_target_column }})
+                )
+            )
+
+        {% else %}
+
+            1 = 1
+
+        {% endif %}
 
 {%- endmacro %}

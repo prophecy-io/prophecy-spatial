@@ -13,8 +13,9 @@
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geom_column_name (string): WKT column; ST_GeomFromText(..., 4326).
     - tolerance (numeric): Simplification tolerance in kilometers if unit is
-      "kilometers", else miles (converted to meters via ×1609.34).
-    - unit (string): "kilometers" → tolerance×1000 meters; otherwise miles.
+      "kms" (or "kilometers"), else miles (converted to meters via ×1609.34).
+    - unit (string): "kms"/"kilometers" → tolerance×1000 meters; otherwise miles.
+      (The gem sends "kms" or "miles".)
 
   Adapter Support:
     - Default (Spark/Databricks-style ST_Simplify / ST_Transform 4326↔3857)
@@ -23,11 +24,11 @@
     No
 
   Macro Call Examples:
-    {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kilometers') }}
+    {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kms') }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kilometers') }}
+      {{ prophecy_spatial.Simplify(['boundaries'], 'staging', 'geom_wkt', 0.1, 'kms') }}
 
     Resolved query (default__):
       SELECT
@@ -59,7 +60,7 @@
   {{ log("tolerance=" ~ tolerance, info=True) }}
   {{ log("unit=" ~ unit, info=True) }}
 
-  {%- if unit == 'kilometers' -%}
+  {%- if unit in ['kms', 'kilometers'] -%}
     {%- set tolerance_meters = tolerance * 1000 -%}
   {%- else -%}
     {%- set tolerance_meters = tolerance * 1609.34 -%}
@@ -81,5 +82,44 @@
     ) as output
   FROM
     {{ relation_list | join(', ') }}
+
+{%- endmacro -%}
+
+{%- macro snowflake__Simplify(
+        relation_name,
+        schema,
+        geom_column_name,
+        tolerance,
+        unit
+) -%}
+
+    {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
+
+    {{ log("relation_name=" ~ relation_name, info=True) }}
+    {{ log("schema=" ~ schema, info=True) }}
+    {{ log("geom_column_name=" ~ geom_column_name, info=True) }}
+    {{ log("tolerance=" ~ tolerance, info=True) }}
+    {{ log("unit=" ~ unit, info=True) }}
+
+    {%- if unit in ['kms', 'kilometers'] -%}
+        {%- set tolerance_meters = tolerance * 1000 -%}
+    {%- else -%}
+        {%- set tolerance_meters = tolerance * 1609.34 -%}
+    {%- endif -%}
+
+    {% set geom = prophecy_basics.quote_identifier(geom_column_name) %}
+
+    SELECT
+
+        base.{{ geom }} AS input,
+
+        ST_ASWKT(
+            ST_SIMPLIFY(
+                TO_GEOGRAPHY(base.{{ geom }}),
+                {{ tolerance_meters }}
+            )
+        ) AS output
+
+    FROM ( {{ relation_list | join(', ') }} ) AS base
 
 {%- endmacro -%}

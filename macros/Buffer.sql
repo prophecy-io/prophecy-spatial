@@ -12,10 +12,10 @@
       passed through to SQL (add quoting/qualifiers as required by your warehouse).
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geometryColumnName (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
-    - distance (numeric): Buffer distance in kilometers when unit is
+    - distance (numeric): Buffer distance in kilometers when unit is "kms" or
       "kilometers", otherwise treated as miles and converted to meters
       (×1609.34).
-    - unit (string): "kilometers" uses distance×1000 as meters; any other value
+    - unit (string): "kms" or "kilometers" uses distance×1000 as meters; any other value
       uses miles-to-meters conversion.
 
   Adapter Support:
@@ -60,7 +60,7 @@
   {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
 
-  {%- if unit == 'kilometers' -%}
+  {%- if unit in ['kms', 'kilometers'] -%}
     {%- set distance_meters = distance * 1000 -%}
   {%- else -%}
     {%- set distance_meters = distance * 1609.34 -%}

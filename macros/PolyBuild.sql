@@ -4,16 +4,18 @@
 
   Groups rows and builds one WKT polygon or linestring per group by ordering
   coordinate pairs (optionally by a sequence column). If lon/lat names are
-  missing, returns all rows unchanged.
+  missing, compilation fails with a dbt compiler error.
 
   Parameters:
     - relation_name (list): One-element list naming the source relation (e.g.
       ['tracks']); default__ uses that name in FROM; adapter.quote is not applied
       to the relation itself (pass identifier as your engine expects).
     - buildMethod (string): Compared lowercased to 'sequencepolygon' vs
-      'sequencepolyline' to choose POLYGON((...)) vs LINESTRING(...).
-    - longitudeColumnName / latitudeColumnName (string): Required for build;
-      adapter.quote applied; empty/whitespace → SELECT * passthrough.
+      'sequencepolyline' to choose POLYGON((...)) vs LINESTRING(...). A group
+      with fewer than 3 distinct points (polygon) or 2 distinct points
+      (polyline) fails the query at runtime via raise_error().
+    - longitudeColumnName / latitudeColumnName (string): Required;
+      adapter.quote applied; empty/whitespace → compiler error.
     - groupColumnName (string, default ''): If non-empty, groups by this column;
       else a constant grouping key of 1.
     - sequenceColumnName (string, default ''): If non-empty, prepended into the
@@ -80,17 +82,20 @@
 ) %}
     {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
-{# ── 0. quick passthrough check ────────────────────────────────────────── #}
-{% if longitudeColumnName | trim | length == 0
-      or latitudeColumnName  | trim | length == 0 %}
-    {{ log('PolyBuild: lon/lat column missing → returning raw rows.', info=True) }}
-    SELECT * FROM {{ relation_list | join(', ') }}
-{% else %}
+{# ── 0. required configuration ─────────────────────────────────────────── #}
+{%- if (longitudeColumnName or '') | trim == '' -%}
+    {{ exceptions.raise_compiler_error("PolyBuild: Please select the longitude column.") }}
+{%- endif -%}
+{%- if (latitudeColumnName or '') | trim == '' -%}
+    {{ exceptions.raise_compiler_error("PolyBuild: Please select the latitude column.") }}
+{%- endif %}
     {# ── validate buildMethod ──────────────────────────────────────────────── #}
     {% set method = buildMethod | lower %}
+    {% set min_points = 3 if method == 'sequencepolygon' else 2 %}
     {# ── flag presence of group / sequence columns ─────────────────────────── #}
     {% set has_group = groupColumnName   | trim | length > 0 %}
     {% set has_seq   = sequenceColumnName | trim | length > 0 %}
+    {% set err_subject = "CONCAT('group ', CAST(grouping_column_name AS STRING))" if has_group else "'input'" %}
 
     {# ── pre-quote column names once ───────────────────────────────────────── #}
     {% set lon = adapter.quote(longitudeColumnName) %}
@@ -142,21 +147,12 @@
             grouping_column_name,
         {% endif %}
         CASE
-            WHEN '{{ method }}' = 'sequencepolygon'
-                 THEN CONCAT(
-                        'POLYGON((',
-                        concat_ws(', ', v),
-                        ', ',
-                        element_at(v, 1),   -- close ring
-                        '))'
-                      )
-            ELSE  /* 'sequencepolyline' */
-                 CONCAT(
-                        'LINESTRING(',
-                        concat_ws(', ', v),
-                        ')'
-                      )
+            /* min distinct points: 3 for 'sequencepolygon', 2 for 'sequencepolyline' */
+            WHEN size(array_distinct(v)) < {{ min_points }} THEN raise_error(CONCAT('PolyBuild: ', {{ err_subject }}, ' has fewer than {{ min_points }} distinct points required for buildMethod {{ buildMethod }}.'))
+            /* 'sequencepolygon': repeat first vertex to close the ring */
+            WHEN '{{ method }}' = 'sequencepolygon' THEN CONCAT('POLYGON((', concat_ws(', ', v), ', ', element_at(v, 1), '))')
+            /* 'sequencepolyline' */
+            ELSE CONCAT('LINESTRING(', concat_ws(', ', v), ')')
         END AS geometry_wkt
     FROM verts
-{% endif %}
 {% endmacro %}

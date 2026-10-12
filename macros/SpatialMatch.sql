@@ -14,12 +14,15 @@
       select; schemas[1] = target column names (aliased as target_<name>). Order
       and membership of output columns follow these lists.
     - source_column / target_column (string): Geometry column names on each side for
-      ST_GeomFromText(source.<col>) / ST_GeomFromText(target.<col>).
+      ST_GeomFromText(source.<col>) / ST_GeomFromText(target.<col>); required
+      (empty → compiler error).
     - match_type (string): 'intersects' | 'contains' | 'within' | 'touches' |
-      'touches_or_intersects' | 'envelope'; unknown types fall through to WHERE 1=1.
+      'touches_or_intersects' | 'envelope'; empty or unknown → compiler error.
 
   Adapter Support:
-    - Default (unqualified relation names; ST_GeomFromText without SRID; no adapter-specific overrides in-repo)
+    - Default (unqualified relation names; ST_GeomFromText without SRID)
+    - BigQuery (ST_GEOGFROMTEXT geography predicates; 'envelope' is not
+      supported and raises a compiler error)
 
   Depends on schema parameter:
     Yes
@@ -77,6 +80,16 @@
     match_type
 ) -%}
 
+  {%- if (source_column or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("SpatialMatch: Please select a source column.") }}
+  {%- endif %}
+  {%- if (target_column or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("SpatialMatch: Please select a target column.") }}
+  {%- endif %}
+  {%- if (match_type or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("SpatialMatch: Please select a match type.") }}
+  {%- endif %}
+
   {% set fn_map = {
     'intersects': 'ST_Intersects',
     'contains': 'ST_Contains',
@@ -129,7 +142,70 @@
         ST_Envelope(ST_GeomFromText(target.{{ quoted_target_column }}))
       )
     {% else %}
-      1=1 -- fallback if no known type
+      {{ exceptions.raise_compiler_error("SpatialMatch: Unsupported match_type '" ~ match_type ~ "'.") }}
+    {% endif %}
+
+{%- endmacro %}
+
+{% macro bigquery__SpatialMatch(
+    relation_name,
+    schemas,
+    source_column,
+    target_column,
+    match_type
+) -%}
+
+  {%- if (source_column or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("SpatialMatch: Please select a source column.") }}
+  {%- endif %}
+  {%- if (target_column or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("SpatialMatch: Please select a target column.") }}
+  {%- endif %}
+  {%- if (match_type or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("SpatialMatch: Please select a match type.") }}
+  {%- endif %}
+
+  {% set fn_map = {
+    'intersects': 'ST_INTERSECTS',
+    'contains': 'ST_CONTAINS',
+    'within': 'ST_WITHIN',
+    'touches': 'ST_TOUCHES'
+  } %}
+
+  {% set source_relation = relation_name[0] %}
+  {% set target_relation = relation_name[1] %}
+
+  {% set source_columns = schemas[0] %}
+  {% set target_columns = schemas[1] %}
+  {% set source_geog = 'ST_GEOGFROMTEXT(source.' ~ adapter.quote(source_column) ~ ')' %}
+  {% set target_geog = 'ST_GEOGFROMTEXT(target.' ~ adapter.quote(target_column) ~ ')' %}
+
+  {% set source_select = [] %}
+  {% for col in source_columns %}
+    {% do source_select.append('source.' ~ adapter.quote(col)) %}
+  {% endfor %}
+
+  {% set target_select = [] %}
+  {% for col in target_columns %}
+    {% do target_select.append('target.' ~ adapter.quote(col) ~ ' AS ' ~ adapter.quote('target_' ~ col)) %}
+  {% endfor %}
+
+  {% set spatial_fn = fn_map.get(match_type) %}
+
+  SELECT
+    {{ (source_select + target_select) | join(',\n    ') }}
+  FROM {{ source_relation }} AS source
+  CROSS JOIN {{ target_relation }} AS target
+  WHERE
+    {% if spatial_fn %}
+      {{ spatial_fn }}({{ source_geog }}, {{ target_geog }})
+    {% elif match_type == 'touches_or_intersects' %}
+      ST_TOUCHES({{ source_geog }}, {{ target_geog }})
+      OR ST_INTERSECTS({{ source_geog }}, {{ target_geog }})
+    {% elif match_type == 'envelope' %}
+      {{ exceptions.raise_compiler_error("SpatialMatch: match_type 'envelope' is not supported on BigQuery") }}
+    {% else %}
+      {{ exceptions.raise_compiler_error("SpatialMatch: Unsupported match_type '" ~ match_type ~ "'.") }}
     {% endif %}
 
 {%- endmacro %}

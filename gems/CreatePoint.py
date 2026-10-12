@@ -119,7 +119,7 @@ class CreatePoint(MacroSpec):
 
         if len(component.properties.addFields) == 0:
             diagnostics.append(
-                Diagnostic("component.properties.addFields", "Please add atleast one point", SeverityLevelEnum.Error))
+                Diagnostic("component.properties.addFields", "Please add at least one point", SeverityLevelEnum.Error))
 
         # Check 2: If fields are having only numeric fields
         numeric_types = {"int", "integer", "float", "double", "long", "decimal", "bigint", "smallint", "tinyint"}

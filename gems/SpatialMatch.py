@@ -171,6 +171,12 @@ class SpatialMatch(MacroSpec):
                            SeverityLevelEnum.Error)
             )
 
+        if len(component.properties.match_type) == 0:
+            diagnostics.append(
+                Diagnostic("component.properties.match_type", f"Please select a match type",
+                           SeverityLevelEnum.Error)
+            )
+
         source_schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
         target_schema = (json.loads(component.ports.inputs[1].schema) if isinstance(component.ports.inputs[1].schema, str) else (component.ports.inputs[1].schema or {}))
         source_field_names = [field["name"] for field in source_schema["fields"]]

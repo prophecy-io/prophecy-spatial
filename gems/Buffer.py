@@ -10,6 +10,7 @@ class Buffer(MacroSpec):
     projectName: str = "prophecy_spatial"
     category: str = "Spatial"
     minNumOfInputPorts: int = 1
+    maxNumOfInputPorts: int = 1
     supportedProviderTypes: list[ProviderTypeEnum] = [
         ProviderTypeEnum.Databricks,
         # ProviderTypeEnum.Snowflake,
@@ -41,6 +42,15 @@ class Buffer(MacroSpec):
                             upstream_label = upstream_node.label
                 relation_name.append(upstream_label)
         return relation_name
+
+    def restrict_input_ports(self, component: Component) -> Component:
+        if len(component.ports.inputs) <= self.maxNumOfInputPorts:
+            return component
+        newPorts = dataclasses.replace(
+            component.ports,
+            inputs=component.ports.inputs[:self.maxNumOfInputPorts]
+        )
+        return component.bindPorts(newPorts)
 
     def dialog(self) -> Dialog:
         help = "Add the input geometry to the result along with the output geometry"
@@ -78,12 +88,28 @@ class Buffer(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        return super().validate(context,component)
+        diagnostics = super().validate(context,component)
+
+        if len(component.properties.geometryColumnName) == 0:
+            diagnostics.append(
+                Diagnostic("component.properties.geometryColumnName", "Please select the geometry column",
+                           SeverityLevelEnum.Error))
+        else:
+            schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
+            field_names = [field["name"] for field in schema["fields"]]
+            if component.properties.geometryColumnName not in field_names:
+                diagnostics.append(
+                    Diagnostic("component.properties.geometryColumnName",
+                               f"Selected geometry column {component.properties.geometryColumnName} is not present in input schema.",
+                               SeverityLevelEnum.Error))
+
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
         schema = (json.loads(newState.ports.inputs[0].schema) if isinstance(newState.ports.inputs[0].schema, str) else (newState.ports.inputs[0].schema or {}))
         fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
+        newState = self.restrict_input_ports(newState)
         relation_name = self.get_relation_names(newState, context)
 
         newProperties = dataclasses.replace(

@@ -78,7 +78,22 @@ class Buffer(MacroSpec):
 
     def validate(self, context: SqlContext, component: Component) -> List[Diagnostic]:
         # Validate the component's state
-        return super().validate(context,component)
+        diagnostics = super(Buffer, self).validate(context, component)
+
+        if component.properties.geometryColumnName is None or component.properties.geometryColumnName == '':
+            diagnostics.append(
+                Diagnostic("component.properties.geometryColumnName", "Please select the geometry column",
+                           SeverityLevelEnum.Error))
+        else:
+            schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
+            field_names = [field["name"] for field in schema.get("fields", [])]
+            if component.properties.geometryColumnName not in field_names:
+                diagnostics.append(
+                    Diagnostic("component.properties.geometryColumnName",
+                               f"Selected geometry column {component.properties.geometryColumnName} is not present in input schema.",
+                               SeverityLevelEnum.Error))
+
+        return diagnostics
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
@@ -116,7 +131,7 @@ class Buffer(MacroSpec):
         return Buffer.BufferProperties(
             relation_name=json.loads(parametersMap.get('relation_name').replace("'", '"')),
             schema=parametersMap.get('schema'),
-            geometryColumnName=parametersMap.get('geometryColumnName').lstrip("'").rstrip("'"),
+            geometryColumnName=(parametersMap.get('geometryColumnName') or parametersMap.get('destinationColumnNames') or '').lstrip("'").rstrip("'"),
             distance=int(parametersMap.get('distance')),
             unit=str(parametersMap.get('unit')).lstrip("'").rstrip("'")
         )
@@ -129,7 +144,7 @@ class Buffer(MacroSpec):
             parameters=[
                 MacroParameter("relation_name", json.dumps(properties.relation_name)),
                 MacroParameter("schema", str(properties.schema)),
-                MacroParameter("destinationColumnNames", properties.geometryColumnName),
+                MacroParameter("geometryColumnName", properties.geometryColumnName),
                 MacroParameter("distance", str(properties.distance)),
                 MacroParameter("unit", properties.unit)
             ]

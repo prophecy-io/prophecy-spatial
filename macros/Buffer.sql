@@ -12,6 +12,7 @@
       passed through to SQL (add quoting/qualifiers as required by your warehouse).
     - schema (string): Logged in default__ only; does not affect generated SQL.
     - geometryColumnName (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
+      If blank, passthrough SELECT * from the relation.
     - distance (numeric): Buffer distance in kilometers when unit is "kms" or
       "kilometers", otherwise treated as miles and converted to meters
       (×1609.34).
@@ -66,6 +67,12 @@
     {%- set distance_meters = distance * 1609.34 -%}
   {%- endif -%}
 
+  {%- if geometryColumnName is none or geometryColumnName | trim | length == 0 %}
+
+  SELECT * FROM {{ relation_list | join(', ') }}
+
+  {%- else %}
+
   SELECT
     {{geometryColumnName}} as input,
     ST_AsText(
@@ -82,5 +89,7 @@
     ) as output
   FROM
     {{ relation_list | join(', ') }}
+
+  {%- endif %}
 
 {%- endmacro -%}

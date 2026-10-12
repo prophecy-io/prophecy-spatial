@@ -11,12 +11,14 @@
       role as relation_name elsewhere), e.g. ['roads']; default__ uses that name
       passed through to SQL (add quoting/qualifiers as required by your warehouse).
     - schema (string): Logged in default__ only; does not affect generated SQL.
-    - geometryColumnName (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326).
+    - geometryColumnName (string): Column holding WKT text; fed to ST_GeomFromText(..., 4326);
+      required (empty → compiler error).
     - distance (numeric): Buffer distance in kilometers when unit is
       "kilometers", otherwise treated as miles and converted to meters
       (×1609.34).
-    - unit (string): "kilometers" uses distance×1000 as meters; any other value
-      uses miles-to-meters conversion.
+    - unit (string): "kilometers" or "kms" (case-insensitive, whitespace
+      trimmed) uses distance×1000 as meters; any other value uses
+      miles-to-meters conversion.
 
   Adapter Support:
     - Default (Spark/Databricks-style ST_*; ST_Transform 4326↔3857, ST_Buffer in meters)
@@ -59,8 +61,11 @@
 ) -%}
   {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
+  {%- if (geometryColumnName or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("Buffer: Please select the geometry column.") }}
+  {%- endif %}
 
-  {%- if unit == 'kilometers' -%}
+  {%- if (unit | trim | upper) in ['KILOMETERS', 'KMS'] -%}
     {%- set distance_meters = distance * 1000 -%}
   {%- else -%}
     {%- set distance_meters = distance * 1609.34 -%}

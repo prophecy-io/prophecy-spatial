@@ -4,8 +4,8 @@
 
   For point-to-point rows, parses WKT POINT columns, computes great-circle
   distance (and optionally cardinal direction and bearing in degrees). When
-  types are not both point or no distance/direction outputs are requested,
-  returns the relation unchanged.
+  column names are blank, types are not both point, or no distance/direction
+  outputs are requested, compilation fails with a dbt compiler error.
 
   Parameters:
     - relation_name (list): One-element list of table/relation identifiers (e.g.
@@ -14,8 +14,8 @@
       default__ projects these names in the output SELECT.
     - sourceColumnNames (string): Single column name whose values are POINT WKT.
     - destinationColumnNames (string): Same for the destination point column.
-    - sourceType / destinationType (string): Both must be 'point' for spatial
-      math; otherwise passthrough SELECT *.
+    - sourceType / destinationType (string): Both must be 'point'; otherwise
+      compiler error.
     - outputDistance (bool): Emit a distance column (name varies by units).
     - units (string): 'kms' | 'mls' | 'mtr' | 'feet' | other (defaults radius
       naming to generic distance column and km-based earth radius).
@@ -116,10 +116,19 @@
     {%- endfor -%}
   {%- endset %}
 
-  {%- if sourceType == 'point'
-        and destinationType == 'point'
-        and (outputDistance or outputCardDirection or outputDirectionDegrees)
-  -%}
+  {#–– required configuration ––#}
+  {%- if (sourceColumnNames or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("Distance: Please select a source column.") }}
+  {%- endif %}
+  {%- if (destinationColumnNames or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("Distance: Please select a destination column.") }}
+  {%- endif %}
+  {%- if sourceType != 'point' or destinationType != 'point' %}
+    {{ exceptions.raise_compiler_error("Distance: Only 'point' source and destination types are supported.") }}
+  {%- endif %}
+  {%- if not (outputDistance or outputCardDirection or outputDirectionDegrees) %}
+    {{ exceptions.raise_compiler_error("Distance: Please select at least one output column option.") }}
+  {%- endif %}
 
     {#–– radius & distance alias ––#}
     {%- if units == 'kms' -%}
@@ -224,11 +233,5 @@
       FROM _coords
 
     {%- endif %}
-
-  {%- else -%}
-
-    SELECT * FROM {{ relation_list | join(', ') }}
-
-  {%- endif -%}
 
 {% endmacro %}

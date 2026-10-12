@@ -11,10 +11,12 @@
       role as relation_name elsewhere), e.g. ['boundaries']; default__ uses that
       name passed through to SQL.
     - schema (string): Logged in default__ only; does not affect generated SQL.
-    - geom_column_name (string): WKT column; ST_GeomFromText(..., 4326).
+    - geom_column_name (string): WKT column; ST_GeomFromText(..., 4326);
+      required (empty → compiler error).
     - tolerance (numeric): Simplification tolerance in kilometers if unit is
       "kilometers", else miles (converted to meters via ×1609.34).
-    - unit (string): "kilometers" → tolerance×1000 meters; otherwise miles.
+    - unit (string): "kilometers" or "kms" (case-insensitive, whitespace
+      trimmed) → tolerance×1000 meters; otherwise miles.
 
   Adapter Support:
     - Default (Spark/Databricks-style ST_Simplify / ST_Transform 4326↔3857)
@@ -59,7 +61,11 @@
   {{ log("tolerance=" ~ tolerance, info=True) }}
   {{ log("unit=" ~ unit, info=True) }}
 
-  {%- if unit == 'kilometers' -%}
+  {%- if (geom_column_name or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("Simplify: Please select the geometry column.") }}
+  {%- endif %}
+
+  {%- if (unit | trim | upper) in ['KILOMETERS', 'KMS'] -%}
     {%- set tolerance_meters = tolerance * 1000 -%}
   {%- else -%}
     {%- set tolerance_meters = tolerance * 1609.34 -%}

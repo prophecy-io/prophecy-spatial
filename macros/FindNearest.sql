@@ -5,7 +5,7 @@
   Cross-joins two point tables, ranks targets by haversine distance per source
   row, filters by max distance, and returns the top N neighbors with optional
   column disambiguation. If types are not point-to-point or column names are
-  missing, returns the first relation unchanged.
+  missing, compilation fails with a dbt compiler error.
 
   Parameters:
     - relation_name (list of two strings): [source_table, target_table]; both
@@ -13,8 +13,8 @@
     - source_schema / target_schema (list): Input schema metadata objects
       containing at least `name`; used to project and alias source/target fields.
     - sourceColumnName / destinationColumnName (string): WKT POINT columns on
-      source and target; must be non-empty for spatial logic.
-    - sourceType / targetType (string): Must both be 'point'.
+      source and target; required (empty → compiler error).
+    - sourceType / targetType (string): Must both be 'point' (else compiler error).
     - nearestPoints (int, required): ROW_NUMBER cutoff (rn <= nearestPoints).
     - maxDistance (numeric, required): Keep pairs with distance <= maxDistance;
       use 0 to disable the upper bound (WHERE 1=1 on distance).
@@ -119,11 +119,20 @@
   {%- endfor %}
 
   {#— Validate required arguments —#}
+  {%- if (sourceColumnName or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("FindNearest: Please select a source column.") }}
+  {%- endif %}
+  {%- if (destinationColumnName or '') | trim == '' %}
+    {{ exceptions.raise_compiler_error("FindNearest: Please select a destination column.") }}
+  {%- endif %}
+  {%- if sourceType != 'point' or targetType != 'point' %}
+    {{ exceptions.raise_compiler_error("FindNearest: Only 'point' source and target types are supported.") }}
+  {%- endif %}
   {%- if nearestPoints is none %}
-    {{ exceptions.raise("FindNearest: 'nearestPoints' must be supplied") }}
+    {{ exceptions.raise_compiler_error("FindNearest: 'nearestPoints' must be supplied.") }}
   {%- endif %}
   {%- if maxDistance is none %}
-    {{ exceptions.raise("FindNearest: 'maxDistance' must be supplied") }}
+    {{ exceptions.raise_compiler_error("FindNearest: 'maxDistance' must be supplied.") }}
   {%- endif %}
 
   {#— Determine radius & distance column name —#}
@@ -171,14 +180,6 @@
   {%- endfor %}
   {%- set tgt_cols_no_alias_str = tgt_cols_no_alias | join(', ') -%}
   {%- set tgt_select_str = tgt_select_list | join(', ') -%}
-
-  {#— Proceed only if both are points and column names provided —#}
-  {%- if
-        sourceType == 'point'
-    and targetType == 'point'
-    and sourceColumnName   != ''
-    and destinationColumnName != ''
-  -%}
 
     WITH
     _src AS (
@@ -311,12 +312,5 @@
     FROM ranked
     WHERE rn <= {{ nearestPoints }}
     ORDER BY lat1, lon1, rn
-
-  {%- else -%}
-
-    -- If not point→point (or missing column names), return source table as-is
-    SELECT * FROM `{{ relation_name[0] }}`
-
-  {%- endif -%}
 
 {%- endmacro %}

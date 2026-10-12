@@ -5,14 +5,14 @@
   Aggregates point-level weights into H3 hex cells, optionally smooths across
   neighboring cells with constant/linear/exponential decay, and returns rounded
   density plus cell boundary WKT. If longitude or latitude column names are blank,
-  returns SELECT * from the relation.
+  compilation fails with a dbt compiler error.
 
   Parameters:
     - relation_name (list): One-element list naming the source table (e.g.
       ['events']); default__ uses that name in FROM without backticks (pass a
       qualified identifier your engine accepts).
     - longitudeColumnName / latitudeColumnName (string): Numeric lon/lat columns
-      passed to h3_longlatash3; if either trims to empty, passthrough SELECT *.
+      passed to h3_longlatash3; if either trims to empty, compiler error.
     - resolution (int): H3 resolution index for h3_longlatash3.
     - gridDistance (int): k-ring radius for smoothing; 0 skips k-ring (single cell).
     - heatColumnName (optional string): Expression summed per point; if omitted
@@ -78,12 +78,13 @@
     ) -%}
 {% set relation_list = relation_name if relation_name is iterable and relation_name is not string else [relation_name] %}
 
-{# ── 0. quick passthrough check ─────────────────────────────────────────────── #}
-{%- if longitudeColumnName | trim | length == 0
-      or latitudeColumnName  | trim | length == 0 -%}
-    SELECT * FROM {{ relation_list | join(', ') }}
-
-{%- else -%}
+{# ── 0. required configuration ──────────────────────────────────────────────── #}
+{%- if (longitudeColumnName or '') | trim == '' -%}
+    {{ exceptions.raise_compiler_error("HeatMap: Please select the longitude column.") }}
+{%- endif -%}
+{%- if (latitudeColumnName or '') | trim == '' -%}
+    {{ exceptions.raise_compiler_error("HeatMap: Please select the latitude column.") }}
+{%- endif -%}
 
 {# ── 1. decide per-point heat expression (1 if column not provided) ─────────── #}
 {%- if heatColumnName is not none and heatColumnName | trim | length > 0 -%}
@@ -156,6 +157,4 @@ SELECT
     round(density,2) as density,
     h3_boundaryaswkt(h3_cell) AS geometry_wkt
 FROM cell_counts_smoothed
-
-{%- endif -%}
 {%- endmacro -%}

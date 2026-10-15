@@ -32,6 +32,7 @@ class CreatePoint(MacroSpec):
     class CreatePointProperties(MacroProperties):
         addFields: List[MatchField] = field(default_factory=list)
         relation_name: List[str] = field(default_factory=list)
+        schema: str = ""
 
     def get_relation_names(self, component: Component, context: SqlContext):
         relation_name = []
@@ -188,8 +189,10 @@ class CreatePoint(MacroSpec):
 
     def onChange(self, context: SqlContext, oldState: Component, newState: Component) -> Component:
         # Handle changes in the component's state and return the new state
+        schema = (json.loads(newState.ports.inputs[0].schema) if isinstance(newState.ports.inputs[0].schema, str) else (newState.ports.inputs[0].schema or {}))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(newState, context)
-        return (replace(newState, properties=replace(newState.properties, relation_name=relation_name)))
+        return (replace(newState, properties=replace(newState.properties, relation_name=relation_name, schema=json.dumps(fields_array))))
 
     def apply(self, props: CreatePointProperties) -> str:
         # generate the actual macro call given the component's state
@@ -203,9 +206,9 @@ class CreatePoint(MacroSpec):
         for field in props.addFields:
             grouped_fields.append([field.longitudeColumnName,field.latitudeColumnName,field.targetColumnName])
 
-        # Macro: CreatePoint(relation, matchFields) — matchFields is a list of triples
+        # Macro: CreatePoint(relation, matchFields, schema) — matchFields is a list of triples
         match_fields_json = json.dumps(grouped_fields)
-        arguments = ["'" + table_name + "'", match_fields_json]
+        arguments = ["'" + table_name + "'", match_fields_json, props.schema or "[]"]
         params = ",".join([param for param in arguments])
         return f'{{{{ {resolved_macro_name}({params}) }}}}'
 
@@ -255,6 +258,7 @@ class CreatePoint(MacroSpec):
         return CreatePoint.CreatePointProperties(
             relation_name=relation_name,
             addFields=add_fields,
+            schema=parametersMap.get("schema") or "",
         )
 
     def unloadProperties(self, properties: PropertiesType) -> MacroProperties:
@@ -270,9 +274,12 @@ class CreatePoint(MacroSpec):
             parameters=[
                 MacroParameter("relation", table_name),
                 MacroParameter("matchFields", json.dumps(match_fields)),
+                MacroParameter("schema", str(properties.schema)),
             ],
         )
 
     def updateInputPortSlug(self, component: Component, context: SqlContext):
+        schema = (json.loads(component.ports.inputs[0].schema) if isinstance(component.ports.inputs[0].schema, str) else (component.ports.inputs[0].schema or {}))
+        fields_array = [{"name": field["name"], "dataType": field["dataType"]["type"]} for field in schema["fields"]]
         relation_name = self.get_relation_names(component, context)
-        return (replace(component, properties=replace(component.properties, relation_name=relation_name)))
+        return (replace(component, properties=replace(component.properties, relation_name=relation_name, schema=json.dumps(fields_array))))

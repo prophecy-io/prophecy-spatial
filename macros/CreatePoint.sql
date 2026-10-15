@@ -13,19 +13,23 @@
     - matchFields (list of triples): Each entry is [lon_col, lat_col, out_col].
       If any of the three names is empty, or matchFields is empty, the macro
       raises a compiler error naming the missing field.
+    - schema (list, default []): Input schema as [{"name": ..., "dataType": ...}].
+      When provided, lon/lat columns must exist in it and have a numeric type
+      (int, integer, float, double, long, decimal, bigint, smallint, tinyint),
+      else compiler error. When empty, the type check is skipped.
 
   Adapter Support:
     - Default (backtick-quoted table/columns; CONCAT('POINT (', lon, ' ', lat, ')') per triple)
 
   Depends on schema parameter:
-    No
+    Yes (for the numeric type check)
 
   Macro Call Examples:
-    {{ prophecy_spatial.CreatePoint(['locations'], [['longitude', 'latitude', 'geom_point']]) }}
+    {{ prophecy_spatial.CreatePoint('locations', [['longitude', 'latitude', 'geom_point']], [{"name": "longitude", "dataType": "Double"}, {"name": "latitude", "dataType": "Double"}]) }}
 
   CTE Usage Example:
     Macro call (example above):
-      {{ prophecy_spatial.CreatePoint(['locations'], [['longitude', 'latitude', 'geom_point']]) }}
+      {{ prophecy_spatial.CreatePoint('locations', [['longitude', 'latitude', 'geom_point']], [{"name": "longitude", "dataType": "Double"}, {"name": "latitude", "dataType": "Double"}]) }}
 
     Resolved query (default__):
       SELECT
@@ -33,14 +37,20 @@
           CONCAT('POINT (', `longitude`, ' ', `latitude`, ')') as `geom_point`
       from `locations`
 #}
-{% macro CreatePoint(relation, matchFields) -%}
-    {{ return(adapter.dispatch('CreatePoint', 'prophecy_spatial')(relation, matchFields)) }}
+{% macro CreatePoint(relation, matchFields, schema=[]) -%}
+    {{ return(adapter.dispatch('CreatePoint', 'prophecy_spatial')(relation, matchFields, schema)) }}
 {% endmacro %}
 
 
 {%- macro default__CreatePoint(
-        relation, matchFields
+        relation, matchFields, schema=[]
 ) -%}
+    {%- set numeric_types = ['int', 'integer', 'float', 'double', 'long', 'decimal', 'bigint', 'smallint', 'tinyint'] -%}
+    {%- set type_lookup = {} -%}
+    {%- for f in schema -%}
+        {%- do type_lookup.update({f['name']: (f['dataType'] | lower).split('(')[0] | trim}) -%}
+    {%- endfor -%}
+
     {%- if matchFields | length == 0 %}
         {{ exceptions.raise_compiler_error("CreatePoint: Please add at least one point.") }}
     {%- endif %}
@@ -53,6 +63,15 @@
         {%- endif %}
         {%- if (fields[2] or '') | trim == '' %}
             {{ exceptions.raise_compiler_error("CreatePoint: Please provide a target column name.") }}
+        {%- endif %}
+        {%- if type_lookup %}
+            {%- for label, col in [('longitude', fields[0]), ('latitude', fields[1])] %}
+                {%- if col not in type_lookup %}
+                    {{ exceptions.raise_compiler_error("CreatePoint: Selected " ~ label ~ " column '" ~ col ~ "' is not present in input schema.") }}
+                {%- elif type_lookup[col] not in numeric_types %}
+                    {{ exceptions.raise_compiler_error("CreatePoint: Please give a " ~ label ~ " field with numeric data type; column '" ~ col ~ "' is " ~ type_lookup[col] ~ ".") }}
+                {%- endif %}
+            {%- endfor %}
         {%- endif %}
     {%- endfor %}
 

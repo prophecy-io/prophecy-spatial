@@ -47,4 +47,4 @@ done < <(git diff --name-only -z "$range")
 
 # Run as root with a writable HOME so TruffleHog's git-config write doesn't error.
 docker run --rm -e HOME=/tmp -v "$workdir:/scan:ro" \
-  "$IMAGE" --no-update filesystem --only-verified --fail /scan
+  "$IMAGE" --no-update --user-agent-suffix="git-hook/prophecy-spatial" filesystem --only-verified --fail /scan
